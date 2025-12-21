@@ -160,6 +160,23 @@ def _relative_raw_path_from_preview(
     return raw_relative.as_posix()
 
 
+def _resolve_capture_directory(root: Path, capture_id: str) -> Optional[Path]:
+    """Return a validated directory inside the given root for stack downloads."""
+    if not capture_id:
+        return None
+    normalized = Path(capture_id)
+    if normalized.is_absolute() or ".." in normalized.parts:
+        return None
+    target_dir = (root / normalized).resolve()
+    try:
+        target_dir.relative_to(root)
+    except ValueError:
+        return None
+    if not target_dir.exists() or not target_dir.is_dir():
+        return None
+    return target_dir
+
+
 def _zip_capture_directory(source_dir: Path, allowed_extensions: Optional[set] = None) -> Optional[io.BytesIO]:
     archive_stream = io.BytesIO()
     file_count = 0
@@ -655,30 +672,30 @@ def serve_raw(filename: str) -> Response:
 
 @app.route("/download-stack/<capture_id>/<kind>")
 def download_stack(capture_id: str, kind: str) -> Response:
-    capture_kind = kind.lower()
-    if capture_kind not in {"preview", "raw"}:
+    kind_lower = (kind or "").strip().lower()
+    if kind_lower not in {"preview", "raw"}:
         abort(404)
-    normalized = Path(capture_id)
-    if normalized.is_absolute() or ".." in normalized.parts or len(normalized.parts) != 1:
+
+    root = _PREVIEW_ROOT if kind_lower == "preview" else _RAW_ROOT
+    allowed_extensions = (
+        _PREVIEW_EXTENSIONS if kind_lower == "preview" else _RAW_EXTENSIONS
+    )
+    target_dir = _resolve_capture_directory(root, capture_id)
+    if target_dir is None:
         abort(404)
-    root = _PREVIEW_ROOT if capture_kind == "preview" else _RAW_ROOT
-    extensions = _PREVIEW_EXTENSIONS if capture_kind == "preview" else _RAW_EXTENSIONS
-    target_dir = (root / normalized).resolve()
-    try:
-        target_dir.relative_to(root)
-    except ValueError:
-        abort(404)
-    if not target_dir.exists() or not target_dir.is_dir():
-        abort(404)
-    archive_stream = _zip_capture_directory(target_dir, extensions)
+
+    archive_stream = _zip_capture_directory(
+        target_dir, allowed_extensions=allowed_extensions
+    )
     if archive_stream is None:
         abort(404)
-    download_label = f"{normalized.name}-{capture_kind}.zip"
+
+    download_name = f"{capture_id}-{kind_lower}.zip"
     return send_file(
         archive_stream,
         mimetype="application/zip",
         as_attachment=True,
-        download_name=download_label,
+        download_name=download_name,
     )
 
 
