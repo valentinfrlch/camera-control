@@ -33,6 +33,21 @@
             },
         };
     </script>
+    <style>
+        #capture-button.timelapse-ring::after {
+            content: "";
+            position: absolute;
+            inset: -7px;
+            border: 4px dotted rgba(255, 255, 255, 0.4);
+            border-radius: 9999px;
+            pointer-events: none;
+            transition: border 100ms ease;
+        }
+
+        #capture-button.timelapse-ring:hover::after {
+            border: 4px dotted rgba(255, 255, 255, 0.6);
+        }
+    </style>
 </head>
 
 <body class="min-h-screen bg-black text-slate-100 font-display relative overflow-hidden">
@@ -61,13 +76,14 @@
             <div id="capture-controls"
                 class="fixed bottom-10 left-1/2 -translate-x-1/2 w-full md:max-w-[40vw] bg-black pt-4 px-4 transform">
                 <div id="secondary-controls" class="px-4">
-                    <div class="grid w-full grid-cols-1 gap-6 md:grid-cols-2"
+                    <div id="mode-controls-grid" class="grid w-full grid-cols-1 gap-6 md:grid-cols-2"
                         data-visible-modes="auto,manual">
 
                         <div class="flex flex-col items-center gap-2 text-center rounded-full md:items-start md:text-left"
                             data-visible-modes="auto">
                             <label for="capture-profile"
-                                class="w-full text-xxs uppercase tracking-[0.3em] text-slate-400 text-center">Trigger Object</label>
+                                class="w-full text-xxs uppercase tracking-[0.3em] text-slate-400 text-center">Trigger
+                                Object</label>
                             <div class="relative inline-flex w-full max-w-sm">
                                 <select id="capture-profile"
                                     class="appearance-none w-full min-w-[100px] rounded-full border border-white/10 bg-slateglass px-6 py-3 pr-10 text-sm font-medium tracking-wide text-slate-100 focus:outline-none focus:ring-2 focus:ring-aurora/60">
@@ -83,8 +99,9 @@
 
                         <div class="flex flex-col items-center gap-2 text-center rounded-full md:items-start md:text-left"
                             data-visible-modes="auto,manual">
-                            <label class="w-full text-xxs uppercase tracking-[0.3em] text-slate-400 text-center">Mode</label>
-                            <div
+                            <label
+                                class="w-full text-xxs uppercase tracking-[0.3em] text-slate-400 text-center">Mode</label>
+                            <div id="mode-selector-row"
                                 class="flex w-full flex-row items-center justify-center rounded-full gap-3 overflow-x-auto flex-nowrap md:justify-start">
                                 <nav
                                     class="inline-flex shrink-0 justify-center gap-1 rounded-full border border-white/10 px-1 py-1 my-1 mx-1">
@@ -163,7 +180,8 @@
                             </div>
                         </div>
                         <div class="px-5 pt-4 text-center md:text-left">
-                            <p id="timelapse-summary" class="text-xxs uppercase tracking-[0.3em] text-aurora hidden text-center">
+                            <p id="timelapse-summary"
+                                class="text-xxs uppercase tracking-[0.3em] text-aurora hidden text-center">
                             </p>
                             <p id="timelapse-status" class="hidden mt-4 text-sm text-slate-400">
                                 Press to start recording
@@ -199,7 +217,7 @@
 
                             <div class="col-start-2 flex justify-center items-center">
                                 <button id="capture-button" type="button"
-                                    class="h-16 w-16 rounded-full bg-ember text-white shadow-glow transition hover:bg-ember/90 flex items-center justify-center hover:ring-8 ring-4 ring-white/40"
+                                    class="relative h-16 w-16 rounded-full bg-ember text-white shadow-glow transition hover:bg-ember/90 flex items-center justify-center hover:ring-8 ring-4 ring-white/40"
                                     aria-pressed="false" aria-label="Primary capture action">
                                     <span id="capture-indicator"
                                         class="h-6 w-6 rounded-md bg-ember opacity-0 scale-75 transition-all duration-150 ease-out"
@@ -250,6 +268,8 @@
         const burstCountSelect = document.getElementById("burst-count");
         const modeButtons = document.querySelectorAll("[data-ui-mode]");
         const modeVisibilityTargets = document.querySelectorAll("[data-visible-modes]");
+        const modeControlsGrid = document.getElementById("mode-controls-grid");
+        const modeSelectorRow = document.getElementById("mode-selector-row");
         const timelapseIntervalSelect = document.getElementById("timelapse-interval");
         const timelapseDurationSelect = document.getElementById("timelapse-duration");
         const timelapseStatusEl = document.getElementById("timelapse-status");
@@ -298,6 +318,10 @@
             captureButton.classList.toggle("cursor-not-allowed", disableButton);
             captureButton.toggleAttribute("disabled", disableButton);
             captureButton.setAttribute("aria-pressed", showActiveState.toString());
+            captureButton.classList.toggle("timelapse-ring", isTimelapseMode);
+            captureButton.classList.toggle("hover:ring-8", !isTimelapseMode);
+            captureButton.classList.toggle("ring-4", !isTimelapseMode);
+            captureButton.classList.toggle("ring-white/40", !isTimelapseMode);
 
             if (captureIndicator) {
                 captureIndicator.classList.toggle("opacity-0", !showActiveState);
@@ -464,6 +488,20 @@
                 }
                 element.classList.toggle("hidden", !allowedModes.includes(activeMode));
             });
+
+            if (modeControlsGrid) {
+                const visibleChildren = Array.from(modeControlsGrid.children).filter(
+                    (child) => !child.classList.contains("hidden")
+                );
+                const singleVisible = visibleChildren.length <= 1;
+                modeControlsGrid.classList.toggle("md:grid-cols-1", singleVisible);
+                modeControlsGrid.classList.toggle("md:grid-cols-2", !singleVisible);
+                modeControlsGrid.classList.toggle("md:justify-items-center", singleVisible);
+                if (modeSelectorRow) {
+                    modeSelectorRow.classList.toggle("md:justify-center", singleVisible);
+                    modeSelectorRow.classList.toggle("md:justify-start", !singleVisible);
+                }
+            }
         }
 
         function updateModeTabs() {
