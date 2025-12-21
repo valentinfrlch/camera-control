@@ -66,53 +66,53 @@
                 {% for item in gallery_items %}
                 <script>
                     const previewBaseUrl = ("{{ url_for('serve_preview', filename='') }}".trim() || "/previews/").replace(/\/+$/, "/");
-                    const rawBaseUrl = ("{{ url_for('serve_raw', filename='') }}".trim() || "/raw/").replace(/\/+$/, "/");
-                    const stackableTypes = new Set(["burst", "timelapse"]);
+                        const rawBaseUrl = ("{{ url_for('serve_raw', filename='') }}".trim() || "/raw/").replace(/\/+$/, "/");
+                        const stackableTypes = new Set(["burst", "timelapse"]);
 
-                    const lightbox = document.getElementById("lightbox");
-                    const lightboxImage = document.getElementById("lightbox-image");
-                    const lightboxCaption = document.getElementById("lightbox-caption");
-                    const closeLightboxButton = document.getElementById("lightbox-close");
-                    const lightboxCarousel = document.getElementById("lightbox-carousel");
-                    const lightboxCarouselTrack = document.getElementById("lightbox-carousel-track");
-                    const lightboxFrameCounter = document.getElementById("lightbox-frame-counter");
-                    const moreOptionsButton = document.getElementById("more-options");
-                    const optionsMenu = document.getElementById("lightbox-options-menu");
-                    const downloadPreviewButton = document.getElementById("download-preview");
-                    const downloadRawButton = document.getElementById("download-raw");
-                    const downloadPreviewZipButton = document.getElementById("download-preview-zip");
-                    const downloadRawZipButton = document.getElementById("download-raw-zip");
-                    const rawUnavailableHint = document.getElementById("raw-unavailable-hint");
-                    const stackDownloadGroup = document.getElementById("stack-download-group");
+                        const lightbox = document.getElementById("lightbox");
+                        const lightboxImage = document.getElementById("lightbox-image");
+                        const lightboxCaption = document.getElementById("lightbox-caption");
+                        const closeLightboxButton = document.getElementById("lightbox-close");
+                        const lightboxCarousel = document.getElementById("lightbox-carousel");
+                        const lightboxCarouselTrack = document.getElementById("lightbox-carousel-track");
+                        const lightboxFrameCounter = document.getElementById("lightbox-frame-counter");
+                        const moreOptionsButton = document.getElementById("more-options");
+                        const optionsMenu = document.getElementById("lightbox-options-menu");
+                        const downloadPreviewButton = document.getElementById("download-preview");
+                        const downloadRawButton = document.getElementById("download-raw");
+                        const downloadPreviewZipButton = document.getElementById("download-preview-zip");
+                        const downloadRawZipButton = document.getElementById("download-raw-zip");
+                        const rawUnavailableHint = document.getElementById("raw-unavailable-hint");
+                        const stackDownloadGroup = document.getElementById("stack-download-group");
 
-                    let currentLightboxImages = [];
-                    let currentLightboxIndex = 0;
-                    let currentLightboxStack = {
-                        type: null,
-                        captureId: null,
-                        previewZipUrl: null,
-                        rawZipUrl: null,
-                    };
+                        let currentLightboxImages = [];
+                        let currentLightboxIndex = 0;
+                        let currentLightboxStack = {
+                            type: null,
+                            captureId: null,
+                            previewZipUrl: null,
+                            rawZipUrl: null,
+                        };
 
-                    function normalizeLabel(label) {
-                        return (label || "").replace(/\s+/g, " ").trim();
-                    }
-
-                    function resolvePreviewSrc(candidate) {
-                        if (!candidate) {
-                            return "";
+                        function normalizeLabel(label) {
+                            return (label || "").replace(/\s+/g, " ").trim();
                         }
-                        if (/^https?:\/\//i.test(candidate) || candidate.startsWith("/")) {
-                            return candidate;
-                        }
+
+                        function resolvePreviewSrc(candidate) {
+                            if (!candidate) {
+                                return "";
+                            }
+                            if (/^https?:\/\//i.test(candidate) || candidate.startsWith("/")) {
+                                return candidate;
+                            }
                         return `${previewBaseUrl}${candidate}`.replace(/([^:]\/)8+/g, "$1");
                     }
 
-                    function prepareImages(rawImages, baseLabel) {
-                        if (!Array.isArray(rawImages)) {
-                            return [];
-                        }
-                        return rawImages
+                        function prepareImages(rawImages, baseLabel) {
+                            if (!Array.isArray(rawImages)) {
+                                return [];
+                            }
+                            return rawImages
                             .map((raw) => {
                                 const previewPath = raw && raw.path ? raw.path : null;
                                 const candidateSource = raw && (raw.src || previewPath);
@@ -132,306 +132,306 @@
                             .filter(Boolean);
                     }
 
-                    function updateLightboxImage(index) {
-                        if (!currentLightboxImages.length) {
-                            return;
-                        }
-                        const clampedIndex = Math.max(0, Math.min(index, currentLightboxImages.length - 1));
-                        const frame = currentLightboxImages[clampedIndex];
-                        currentLightboxIndex = clampedIndex;
-                        lightboxImage.src = frame.src;
-                        lightboxImage.alt = frame.label || "Captured frame";
-                        lightboxCaption.textContent = frame.label || "";
-                        updateDownloadControls();
-                    }
-
-                    function buildPreviewDownloadUrl(frame) {
-                        if (!frame) {
-                            return null;
-                        }
-                        if (frame.path) {
-                            return resolvePreviewSrc(frame.path);
-                        }
-                        return frame.src || null;
-                    }
-
-                    function buildRawDownloadUrl(frame) {
-                        if (!frame || !frame.rawPath) {
-                            return null;
-                        }
-                        return `${rawBaseUrl}${frame.rawPath}`;
-                    }
-
-                    function triggerDownload(url, filename) {
-                        if (!url) {
-                            return;
-                        }
-                        const anchor = document.createElement("a");
-                        anchor.href = url;
-                        if (filename) {
-                            anchor.download = filename;
-                        }
-                        anchor.rel = "noopener";
-                        document.body.appendChild(anchor);
-                        anchor.click();
-                        document.body.removeChild(anchor);
-                    }
-
-                    function isStackedSelection() {
-                        return stackableTypes.has((currentLightboxStack.type || "").toLowerCase());
-                    }
-
-                    function updateDownloadControls() {
-                        const frame = currentLightboxImages[currentLightboxIndex];
-                        const previewUrl = buildPreviewDownloadUrl(frame);
-                        const rawUrl = buildRawDownloadUrl(frame);
-
-                        if (downloadPreviewButton) {
-                            downloadPreviewButton.disabled = !previewUrl;
-                        }
-                        if (downloadRawButton) {
-                            downloadRawButton.disabled = !rawUrl;
-                        }
-                        if (rawUnavailableHint) {
-                            rawUnavailableHint.classList.toggle("hidden", Boolean(rawUrl));
-                        }
-
-                        const stacked = isStackedSelection();
-                        if (stackDownloadGroup) {
-                            stackDownloadGroup.classList.toggle("hidden", !stacked);
-                        }
-                        if (downloadPreviewZipButton) {
-                            downloadPreviewZipButton.classList.toggle("hidden", !stacked);
-                            downloadPreviewZipButton.disabled = !stacked || !currentLightboxStack.previewZipUrl;
-                        }
-                        if (downloadRawZipButton) {
-                            downloadRawZipButton.classList.toggle("hidden", !stacked);
-                            downloadRawZipButton.disabled = !stacked || !currentLightboxStack.rawZipUrl;
-                        }
-                    }
-
-                    function downloadCurrentFrameAsset(kind) {
-                        if (kind === "preview-zip" || kind === "raw-zip") {
-                            const targetUrl = kind === "preview-zip" ? currentLightboxStack.previewZipUrl : currentLightboxStack.rawZipUrl;
-                            if (!targetUrl) {
-                                updateDownloadControls();
-                                return;
-                            }
-                            const suffix = kind === "preview-zip" ? "previews" : "raw";
-                            const fallback = currentLightboxStack.captureId ? `${currentLightboxStack.captureId}-${suffix}.zip` : `capture-${suffix}.zip`;
-                            triggerDownload(targetUrl, fallback);
-                            hideOptionsMenu();
-                            return;
-                        }
-
-                        if (!currentLightboxImages.length) {
-                            return;
-                        }
-                        const frame = currentLightboxImages[currentLightboxIndex];
-                        if (!frame) {
-                            return;
-                        }
-                        if (kind === "preview") {
-                            const previewUrl = buildPreviewDownloadUrl(frame);
-                            if (!previewUrl) {
-                                return;
-                            }
-                            const fallbackName = frame.filename || "capture-preview.jpg";
-                            triggerDownload(previewUrl, fallbackName);
-                            hideOptionsMenu();
-                            return;
-                        }
-                        const rawUrl = buildRawDownloadUrl(frame);
-                        if (!rawUrl) {
-                            updateDownloadControls();
-                            return;
-                        }
-                        const rawName = frame.rawPath
-                            ? frame.rawPath.split("/").pop()
-                            : (frame.filename || "").replace(/\.[^.]+$/, ".nef");
-                        triggerDownload(rawUrl, rawName || "capture-raw.nef");
-                        hideOptionsMenu();
-                    }
-
-                    function hideOptionsMenu() {
-                        if (!optionsMenu) {
-                            return;
-                        }
-                        optionsMenu.classList.add("hidden");
-                    }
-
-                    function renderLightboxCarousel() {
-                        if (!currentLightboxImages.length || currentLightboxImages.length === 1) {
-                            lightboxCarousel.classList.add("hidden");
-                            lightboxImage.classList.remove("mt-16");
-                            lightboxCarouselTrack.innerHTML = "";
-                            lightboxFrameCounter.textContent = "";
-                            return;
-                        }
-
-                        lightboxCarousel.classList.remove("hidden");
-                        lightboxImage.classList.add("mt-16");
-                        lightboxCarouselTrack.innerHTML = "";
-                        lightboxFrameCounter.textContent = `${currentLightboxIndex + 1} / ${currentLightboxImages.length}`;
-
-                        currentLightboxImages.forEach((image, index) => {
-                            const thumbButton = document.createElement("button");
-                            thumbButton.type = "button";
-                            thumbButton.className = `relative h-20 w-28 flex-shrink-0 overflow-hidden rounded-xl border transition focus:outline-none ${index === currentLightboxIndex
-                                ? "border-aurora shadow-glow"
-                                : "border-white/10 hover:border-white/30"}`;
-                            thumbButton.setAttribute("aria-label", image.label || `Frame ${index + 1}`);
-
-                            const thumbImage = document.createElement("img");
-                            thumbImage.src = image.src;
-                            thumbImage.alt = image.label || `Frame ${index + 1}`;
-                            thumbImage.className = "h-full w-full object-cover";
-                            thumbButton.appendChild(thumbImage);
-
-                            if (index === currentLightboxIndex) {
-                                const indicator = document.createElement("div");
-                                indicator.className = "pointer-events-none absolute inset-0 bg-aurora/10 ring-1 ring-inset ring-aurora/30";
-                                thumbButton.appendChild(indicator);
-                            }
-
-                            thumbButton.addEventListener("click", () => {
-                                updateLightboxImage(index);
-                                renderLightboxCarousel();
-                            });
-
-                            lightboxCarouselTrack.appendChild(thumbButton);
-                        });
-                    }
-
-                    function openLightbox(src, label, rawImages = [], startingIndex = 0, stackMeta = {}) {
-                        const normalizedLabel = normalizeLabel(label);
-                        let preparedImages = prepareImages(rawImages, normalizedLabel);
-                        if (!preparedImages.length && src) {
-                            preparedImages = [{ src, label: normalizedLabel }];
-                        }
-                        currentLightboxImages = preparedImages;
-                        currentLightboxStack = {
-                            type: stackMeta.type || null,
-                            captureId: stackMeta.captureId || null,
-                            previewZipUrl: stackMeta.previewZipUrl || "",
-                            rawZipUrl: stackMeta.rawZipUrl || "",
-                        };
-                        if (!currentLightboxImages.length) {
-                            return;
-                        }
-                        const initialIndex = Number.isNaN(startingIndex)
-                            ? 0
-                            : Math.max(0, Math.min(startingIndex, currentLightboxImages.length - 1));
-                        updateLightboxImage(initialIndex);
-                        renderLightboxCarousel();
-                        lightbox.classList.remove("hidden");
-                        document.body.classList.add("overflow-hidden");
-                    }
-
-                    function closeLightbox() {
-                        lightbox.classList.add("hidden");
-                        lightboxImage.src = "";
-                        document.body.classList.remove("overflow-hidden");
-                        lightboxCaption.textContent = "";
-                        currentLightboxImages = [];
-                        currentLightboxIndex = 0;
-                        currentLightboxStack = {
-                            type: null,
-                            captureId: null,
-                            previewZipUrl: null,
-                            rawZipUrl: null,
-                        };
-                        lightboxCarouselTrack.innerHTML = "";
-                        lightboxCarousel.classList.add("hidden");
-                        lightboxFrameCounter.textContent = "";
-                        hideOptionsMenu();
-                    }
-
-                    document.querySelectorAll("[data-lightbox-trigger]").forEach((trigger) => {
-                        trigger.addEventListener("click", () => {
-                            const src = trigger.getAttribute("data-lightbox-src");
-                            const label = trigger.getAttribute("data-lightbox-label") || "";
-                            const imagesAttr = trigger.getAttribute("data-lightbox-images");
-                            let parsedImages = [];
-                            if (imagesAttr) {
-                                try {
-                                    parsedImages = JSON.parse(imagesAttr);
-                                } catch (error) {
-                                    console.warn("Unable to parse image payload for lightbox", error);
-                                }
-                            }
-                            const startingIndexAttr = trigger.getAttribute("data-lightbox-index");
-                            const startingIndex = startingIndexAttr ? Number.parseInt(startingIndexAttr, 10) : 0;
-                            const stackMeta = {
-                                type: trigger.getAttribute("data-lightbox-type") || "",
-                                captureId: trigger.getAttribute("data-stack-id") || "",
-                                previewZipUrl: trigger.getAttribute("data-stack-preview") || "",
-                                rawZipUrl: trigger.getAttribute("data-stack-raw") || "",
-                            };
-                            openLightbox(
-                                src,
-                                label,
-                                parsedImages,
-                                Number.isNaN(startingIndex) ? 0 : startingIndex,
-                                stackMeta,
-                            );
-                        });
-                    });
-
-                    if (closeLightboxButton) {
-                        closeLightboxButton.addEventListener("click", closeLightbox);
-                    }
-                    if (moreOptionsButton) {
-                        moreOptionsButton.addEventListener("click", () => {
+                        function updateLightboxImage(index) {
                             if (!currentLightboxImages.length) {
                                 return;
                             }
-                            updateDownloadControls();
-                            optionsMenu?.classList.toggle("hidden");
-                        });
-                    }
-                    if (downloadPreviewButton) {
-                        downloadPreviewButton.addEventListener("click", () => downloadCurrentFrameAsset("preview"));
-                    }
-                    if (downloadRawButton) {
-                        downloadRawButton.addEventListener("click", () => downloadCurrentFrameAsset("raw"));
-                    }
-                    if (downloadPreviewZipButton) {
-                        downloadPreviewZipButton.addEventListener("click", () => downloadCurrentFrameAsset("preview-zip"));
-                    }
-                    if (downloadRawZipButton) {
-                        downloadRawZipButton.addEventListener("click", () => downloadCurrentFrameAsset("raw-zip"));
-                    }
-                    if (lightbox) {
-                        lightbox.addEventListener("click", (event) => {
-                            if (event.target === lightbox) {
-                                closeLightbox();
+                            const clampedIndex = Math.max(0, Math.min(index, currentLightboxImages.length - 1));
+                            const frame = currentLightboxImages[clampedIndex];
+                            currentLightboxIndex = clampedIndex;
+                            lightboxImage.src = frame.src;
+                            lightboxImage.alt = frame.label || "Captured frame";
+                            lightboxCaption.textContent = frame.label || "";
+                                updateDownloadControls();
                             }
-                        });
+
+                            function buildPreviewDownloadUrl(frame) {
+                                if (!frame) {
+                                    return null;
+                                }
+                                if (frame.path) {
+                                    return resolvePreviewSrc(frame.path);
+                                }
+                                return frame.src || null;
+                            }
+
+                            function buildRawDownloadUrl(frame) {
+                                if (!frame || !frame.rawPath) {
+                                    return null;
+                                }
+                                return `${rawBaseUrl}${frame.rawPath}`;
+                            }
+
+                            function triggerDownload(url, filename) {
+                                if (!url) {
+                                    return;
+                                }
+                                const anchor = document.createElement("a");
+                                anchor.href = url;
+                                if (filename) {
+                                    anchor.download = filename;
+                                }
+                                anchor.rel = "noopener";
+                                document.body.appendChild(anchor);
+                                anchor.click();
+                                document.body.removeChild(anchor);
+                            }
+
+                            function isStackedSelection() {
+                                return stackableTypes.has((currentLightboxStack.type || "").toLowerCase());
+                            }
+
+                            function updateDownloadControls() {
+                                const frame = currentLightboxImages[currentLightboxIndex];
+                                const previewUrl = buildPreviewDownloadUrl(frame);
+                                const rawUrl = buildRawDownloadUrl(frame);
+
+                                if (downloadPreviewButton) {
+                                    downloadPreviewButton.disabled = !previewUrl;
+                                }
+                                if (downloadRawButton) {
+                                    downloadRawButton.disabled = !rawUrl;
+                                }
+                                if (rawUnavailableHint) {
+                                    rawUnavailableHint.classList.toggle("hidden", Boolean(rawUrl));
+                                }
+
+                                const stacked = isStackedSelection();
+                                if (stackDownloadGroup) {
+                                    stackDownloadGroup.classList.toggle("hidden", !stacked);
+                                }
+                                if (downloadPreviewZipButton) {
+                                    downloadPreviewZipButton.classList.toggle("hidden", !stacked);
+                                    downloadPreviewZipButton.disabled = !stacked || !currentLightboxStack.previewZipUrl;
+                                }
+                                if (downloadRawZipButton) {
+                                    downloadRawZipButton.classList.toggle("hidden", !stacked);
+                                    downloadRawZipButton.disabled = !stacked || !currentLightboxStack.rawZipUrl;
+                                }
+                            }
+
+                            function downloadCurrentFrameAsset(kind) {
+                                if (kind === "preview-zip" || kind === "raw-zip") {
+                                    const targetUrl = kind === "preview-zip" ? currentLightboxStack.previewZipUrl : currentLightboxStack.rawZipUrl;
+                                    if (!targetUrl) {
+                                        updateDownloadControls();
+                                        return;
+                                    }
+                                    const suffix = kind === "preview-zip" ? "previews" : "raw";
+                                    const fallback = currentLightboxStack.captureId ? `${currentLightboxStack.captureId}-${suffix}.zip` : `capture-${suffix}.zip`;
+                                    triggerDownload(targetUrl, fallback);
+                                    hideOptionsMenu();
+                                    return;
+                                }
+
+                                if (!currentLightboxImages.length) {
+                                    return;
+                                }
+                                const frame = currentLightboxImages[currentLightboxIndex];
+                                if (!frame) {
+                                    return;
+                                }
+                                if (kind === "preview") {
+                                    const previewUrl = buildPreviewDownloadUrl(frame);
+                                    if (!previewUrl) {
+                                        return;
+                                    }
+                                    const fallbackName = frame.filename || "capture-preview.jpg";
+                                    triggerDownload(previewUrl, fallbackName);
+                                    hideOptionsMenu();
+                                    return;
+                                }
+                                const rawUrl = buildRawDownloadUrl(frame);
+                                if (!rawUrl) {
+                                    updateDownloadControls();
+                                    return;
+                                }
+                                const rawName = frame.rawPath
+                                    ? frame.rawPath.split("/").pop()
+                                    : (frame.filename || "").replace(/\.[^.]+$/, ".nef");
+                                triggerDownload(rawUrl, rawName || "capture-raw.nef");
+                                hideOptionsMenu();
+                            }
+
+                            function hideOptionsMenu() {
+                                if (!optionsMenu) {
+                                    return;
+                                }
+                                optionsMenu.classList.add("hidden");
                     }
-                    document.addEventListener("click", (event) => {
-                        if (!optionsMenu || optionsMenu.classList.contains("hidden")) {
-                            return;
-                        }
-                        if (optionsMenu.contains(event.target) || (moreOptionsButton && moreOptionsButton.contains(event.target))) {
-                            return;
-                        }
-                        hideOptionsMenu();
-                    });
-                    document.addEventListener("keydown", (event) => {
-                        if (event.key !== "Escape") {
-                            return;
-                        }
-                        if (optionsMenu && !optionsMenu.classList.contains("hidden")) {
-                            hideOptionsMenu();
-                            return;
-                        }
-                        if (!lightbox.classList.contains("hidden")) {
-                            closeLightbox();
-                        }
-                    });
-                    closeLightbox();
-                </script>
+
+                        function renderLightboxCarousel() {
+                            if (!currentLightboxImages.length || currentLightboxImages.length === 1) {
+                                lightboxCarousel.classList.add("hidden");
+                                        lightboxImage.classList.remove("mt-16");
+                                        lightboxCarouselTrack.innerHTML = "";
+                                        lightboxFrameCounter.textContent = "";
+                                        return;
+                                    }
+
+                                    lightboxCarousel.classList.remove("hidden");
+                                    lightboxImage.classList.add("mt-16");
+                                    lightboxCarouselTrack.innerHTML = "";
+                                    lightboxFrameCounter.textContent = `${currentLightboxIndex + 1} / ${currentLightboxImages.length}`;
+
+                                    currentLightboxImages.forEach((image, index) => {
+                                        const thumbButton = document.createElement("button");
+                                        thumbButton.type = "button";
+                                        thumbButton.className = `relative h-20 w-28 flex-shrink-0 overflow-hidden rounded-xl border transition focus:outline-none ${index === currentLightboxIndex
+                                            ? "border-aurora shadow-glow"
+                                            : "border-white/10 hover:border-white/30"}`;
+                                        thumbButton.setAttribute("aria-label", image.label || `Frame ${index + 1}`);
+
+                                        const thumbImage = document.createElement("img");
+                                        thumbImage.src = image.src;
+                                        thumbImage.alt = image.label || `Frame ${index + 1}`;
+                                        thumbImage.className = "h-full w-full object-cover";
+                                        thumbButton.appendChild(thumbImage);
+
+                                        if (index === currentLightboxIndex) {
+                                            const indicator = document.createElement("div");
+                                            indicator.className = "pointer-events-none absolute inset-0 bg-aurora/10 ring-1 ring-inset ring-aurora/30";
+                                            thumbButton.appendChild(indicator);
+                                        }
+
+                                        thumbButton.addEventListener("click", () => {
+                                            updateLightboxImage(index);
+                                            renderLightboxCarousel();
+                                        });
+
+                                        lightboxCarouselTrack.appendChild(thumbButton);
+                                    });
+                                }
+
+                                function openLightbox(src, label, rawImages = [], startingIndex = 0, stackMeta = {}) {
+                                    const normalizedLabel = normalizeLabel(label);
+                                    let preparedImages = prepareImages(rawImages, normalizedLabel);
+                                    if (!preparedImages.length && src) {
+                                        preparedImages = [{ src, label: normalizedLabel }];
+                                    }
+                                    currentLightboxImages = preparedImages;
+                                    currentLightboxStack = {
+                                        type: stackMeta.type || null,
+                                        captureId: stackMeta.captureId || null,
+                                        previewZipUrl: stackMeta.previewZipUrl || "",
+                                        rawZipUrl: stackMeta.rawZipUrl || "",
+                                    };
+                                    if (!currentLightboxImages.length) {
+                                        return;
+                                    }
+                                    const initialIndex = Number.isNaN(startingIndex)
+                                        ? 0
+                                        : Math.max(0, Math.min(startingIndex, currentLightboxImages.length - 1));
+                                    updateLightboxImage(initialIndex);
+                                    renderLightboxCarousel();
+                                    lightbox.classList.remove("hidden");
+                                    document.body.classList.add("overflow-hidden");
+                                }
+
+                                function closeLightbox() {
+                                    lightbox.classList.add("hidden");
+                                    lightboxImage.src = "";
+                                    document.body.classList.remove("overflow-hidden");
+                                    lightboxCaption.textContent = "";
+                                    currentLightboxImages = [];
+                                    currentLightboxIndex = 0;
+                                    currentLightboxStack = {
+                                        type: null,
+                                        captureId: null,
+                                        previewZipUrl: null,
+                                        rawZipUrl: null,
+                                    };
+                                    lightboxCarouselTrack.innerHTML = "";
+                                    lightboxCarousel.classList.add("hidden");
+                                    lightboxFrameCounter.textContent = "";
+                                    hideOptionsMenu();
+                                }
+
+                                document.querySelectorAll("[data-lightbox-trigger]").forEach((trigger) => {
+                                    trigger.addEventListener("click", () => {
+                                        const src = trigger.getAttribute("data-lightbox-src");
+                                        const label = trigger.getAttribute("data-lightbox-label") || "";
+                                        const imagesAttr = trigger.getAttribute("data-lightbox-images");
+                                        let parsedImages = [];
+                                        if (imagesAttr) {
+                                            try {
+                                                parsedImages = JSON.parse(imagesAttr);
+                                            } catch (error) {
+                                                console.warn("Unable to parse image payload for lightbox", error);
+                                            }
+                                        }
+                                        const startingIndexAttr = trigger.getAttribute("data-lightbox-index");
+                                        const startingIndex = startingIndexAttr ? Number.parseInt(startingIndexAttr, 10) : 0;
+                                        const stackMeta = {
+                                            type: trigger.getAttribute("data-lightbox-type") || "",
+                                            captureId: trigger.getAttribute("data-stack-id") || "",
+                                            previewZipUrl: trigger.getAttribute("data-stack-preview") || "",
+                                            rawZipUrl: trigger.getAttribute("data-stack-raw") || "",
+                                        };
+                                        openLightbox(
+                                            src,
+                                            label,
+                                            parsedImages,
+                                            Number.isNaN(startingIndex) ? 0 : startingIndex,
+                                            stackMeta,
+                                        );
+                                    });
+                                });
+
+                                if (closeLightboxButton) {
+                                    closeLightboxButton.addEventListener("click", closeLightbox);
+                                }
+                                if (moreOptionsButton) {
+                                    moreOptionsButton.addEventListener("click", () => {
+                                        if (!currentLightboxImages.length) {
+                                            return;
+                                        }
+                                        updateDownloadControls();
+                                        optionsMenu?.classList.toggle("hidden");
+                                    });
+                                }
+                                if (downloadPreviewButton) {
+                                    downloadPreviewButton.addEventListener("click", () => downloadCurrentFrameAsset("preview"));
+                                }
+                                if (downloadRawButton) {
+                                    downloadRawButton.addEventListener("click", () => downloadCurrentFrameAsset("raw"));
+                                }
+                                if (downloadPreviewZipButton) {
+                                    downloadPreviewZipButton.addEventListener("click", () => downloadCurrentFrameAsset("preview-zip"));
+                                }
+                                if (downloadRawZipButton) {
+                                    downloadRawZipButton.addEventListener("click", () => downloadCurrentFrameAsset("raw-zip"));
+                                }
+                                if (lightbox) {
+                                    lightbox.addEventListener("click", (event) => {
+                                        if (event.target === lightbox) {
+                                            closeLightbox();
+                                        }
+                                    });
+                                }
+                                document.addEventListener("click", (event) => {
+                                    if (!optionsMenu || optionsMenu.classList.contains("hidden")) {
+                                        return;
+                                    }
+                                    if (optionsMenu.contains(event.target) || (moreOptionsButton && moreOptionsButton.contains(event.target))) {
+                                        return;
+                                    }
+                                    hideOptionsMenu();
+                                });
+                                document.addEventListener("keydown", (event) => {
+                                    if (event.key !== "Escape") {
+                                        return;
+                                    }
+                                    if (optionsMenu && !optionsMenu.classList.contains("hidden")) {
+                                        hideOptionsMenu();
+                                        return;
+                                    }
+                                    if (!lightbox.classList.contains("hidden")) {
+                                        closeLightbox();
+                                    }
+                                });
+                                closeLightbox();
+                            </script>
                     lightboxImage.classList.remove("mt-16");
                     lightboxCarouselTrack.innerHTML = "";
                     lightboxFrameCounter.textContent = "";
@@ -525,11 +525,11 @@
 
         closeLightboxButton.addEventListener("click", closeLightbox);
             moreOptionsButton.addEventListener("click", () => {
-                if (!currentLightboxImages.length) {
-                    return;
-                }
-                updateDownloadControls();
-                optionsMenu.classList.toggle("hidden");
+            if (!currentLightboxImages.length) {
+            return;
+            }
+            updateDownloadControls();
+            optionsMenu.classList.toggle("hidden");
             });
             downloadPreviewButton.addEventListener("click", () => downloadCurrentFrameAsset("preview"));
             downloadRawButton.addEventListener("click", () => downloadCurrentFrameAsset("raw"));
@@ -539,21 +539,21 @@
             }
         });
             document.addEventListener("click", (event) => {
-                if (optionsMenu.classList.contains("hidden")) {
-                    return;
-                }
-                if (optionsMenu.contains(event.target) || moreOptionsButton.contains(event.target)) {
-                    return;
-                }
-                hideOptionsMenu();
+            if (optionsMenu.classList.contains("hidden")) {
+            return;
+            }
+            if (optionsMenu.contains(event.target) || moreOptionsButton.contains(event.target)) {
+            return;
+            }
+            hideOptionsMenu();
             });
         document.addEventListener("keydown", (event) => {
             if (event.key !== "Escape") {
-                return;
+            return;
             }
             if (!optionsMenu.classList.contains("hidden")) {
-                hideOptionsMenu();
-                return;
+            hideOptionsMenu();
+            return;
             }
             if (!lightbox.classList.contains("hidden")) {
                 closeLightbox();
