@@ -1,9 +1,11 @@
 import atexit
+import io
 import queue
 import re
 import threading
 import time
-from datetime import datetime
+import zipfile
+from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Dict, Generator, List, Optional
 
@@ -15,6 +17,7 @@ from flask import (
     jsonify,
     render_template,
     request,
+    send_file,
     send_from_directory,
     url_for,
 )
@@ -78,7 +81,9 @@ _timelapse_capture_dir: Optional[Path] = None
 
 _BASE_DIR = Path(__file__).resolve().parent
 _PREVIEW_ROOT = (_BASE_DIR / "captures/previews").resolve()
+_RAW_ROOT = (_BASE_DIR / "captures/raw").resolve()
 _PREVIEW_EXTENSIONS = {".jpg", ".jpeg", ".png"}
+_RAW_EXTENSIONS = {".nef"}
 _TIMESTAMP_PATTERN = re.compile(r"(\d{8}-\d{6})")
 _TIMESTAMP_FORMAT = "%Y%m%d-%H%M%S"
 _GROUPED_CAPTURE_PREFIXES = {
@@ -104,6 +109,28 @@ def _format_capture_timestamp(value: datetime) -> str:
     return value.strftime("%b %d, %Y \n %H:%M:%S")
 
 
+def _assign_day_metadata(items: List[Dict[str, object]]) -> None:
+    today = datetime.now().date()
+    yesterday = today - timedelta(days=1)
+    for item in items:
+        timestamp_iso = item.get("timestamp_iso")
+        if not timestamp_iso:
+            continue
+        try:
+            timestamp_value = datetime.fromisoformat(timestamp_iso)
+        except (TypeError, ValueError):
+            continue
+        capture_date = timestamp_value.date()
+        if capture_date == today:
+            day_label = "Today"
+        elif capture_date == yesterday:
+            day_label = "Yesterday"
+        else:
+            day_label = capture_date.strftime("%B %d, %Y")
+        item["day_key"] = capture_date.isoformat()
+        item["day_label"] = day_label
+
+
 def _relative_preview_path(path: Path) -> Optional[str]:
     try:
         return path.relative_to(_PREVIEW_ROOT).as_posix()
@@ -113,6 +140,42 @@ def _relative_preview_path(path: Path) -> Optional[str]:
 
 def _is_preview_image(path: Path) -> bool:
     return path.is_file() and path.suffix.lower() in _PREVIEW_EXTENSIONS
+
+
+def _relative_raw_path_from_preview(
+    relative_preview_path: Optional[str],
+) -> Optional[str]:
+    if not relative_preview_path:
+        return None
+    normalized = Path(relative_preview_path)
+    if normalized.is_absolute() or ".." in normalized.parts:
+        return None
+    raw_candidate = (_RAW_ROOT / normalized).with_suffix(".nef")
+    try:
+        raw_relative = raw_candidate.relative_to(_RAW_ROOT)
+    except ValueError:
+        return None
+    if not raw_candidate.exists():
+        return None
+    return raw_relative.as_posix()
+
+
+def _zip_capture_directory(source_dir: Path, allowed_extensions: Optional[set] = None) -> Optional[io.BytesIO]:
+    archive_stream = io.BytesIO()
+    file_count = 0
+    with zipfile.ZipFile(archive_stream, "w", zipfile.ZIP_DEFLATED) as bundle:
+        for file_path in sorted(source_dir.rglob("*")):
+            if file_path.is_dir():
+                continue
+            if allowed_extensions and file_path.suffix.lower() not in allowed_extensions:
+                continue
+            arcname = file_path.relative_to(source_dir).as_posix()
+            bundle.write(file_path, arcname=arcname)
+            file_count += 1
+    if file_count == 0:
+        return None
+    archive_stream.seek(0)
+    return archive_stream
 
 
 def _build_single_capture_item(file_path: Path) -> Optional[Dict[str, object]]:
@@ -125,7 +188,12 @@ def _build_single_capture_item(file_path: Path) -> Optional[Dict[str, object]]:
     if relative_path is None:
         return None
     sort_key = timestamp.timestamp()
-    image_payload = {"path": relative_path, "filename": file_path.name}
+    raw_path = _relative_raw_path_from_preview(relative_path)
+    image_payload = {
+        "path": relative_path,
+        "filename": file_path.name,
+        "raw_path": raw_path,
+    }
     return {
         "id": file_path.stem,
         "type": "single",
@@ -159,7 +227,14 @@ def _build_grouped_capture_item(directory: Path) -> Optional[Dict[str, object]]:
         relative_path = _relative_preview_path(child)
         if relative_path is None:
             continue
-        child_images.append({"path": relative_path, "filename": child.name})
+        raw_path = _relative_raw_path_from_preview(relative_path)
+        child_images.append(
+            {
+                "path": relative_path,
+                "filename": child.name,
+                "raw_path": raw_path,
+            }
+        )
     if not child_images:
         return None
     sort_key = timestamp.timestamp()
@@ -195,6 +270,7 @@ def _gather_gallery_items() -> List[Dict[str, object]]:
     items.sort(key=lambda data: data.get("sort_key", 0.0), reverse=True)
     for item in items:
         item.pop("sort_key", None)
+    _assign_day_metadata(items)
     return items
 
 
@@ -560,6 +636,50 @@ def serve_preview(filename: str) -> Response:
     if not _PREVIEW_ROOT.exists():
         abort(404)
     return send_from_directory(str(_PREVIEW_ROOT), normalized.as_posix())
+
+
+@app.route("/raw/<path:filename>")
+def serve_raw(filename: str) -> Response:
+    normalized = Path(filename)
+    if normalized.is_absolute() or ".." in normalized.parts:
+        abort(404)
+    if not _RAW_ROOT.exists():
+        abort(404)
+    target_path = _RAW_ROOT / normalized
+    if not target_path.exists():
+        abort(404)
+    return send_from_directory(
+        str(_RAW_ROOT), normalized.as_posix(), as_attachment=True
+    )
+
+
+@app.route("/download-stack/<capture_id>/<kind>")
+def download_stack(capture_id: str, kind: str) -> Response:
+    capture_kind = kind.lower()
+    if capture_kind not in {"preview", "raw"}:
+        abort(404)
+    normalized = Path(capture_id)
+    if normalized.is_absolute() or ".." in normalized.parts or len(normalized.parts) != 1:
+        abort(404)
+    root = _PREVIEW_ROOT if capture_kind == "preview" else _RAW_ROOT
+    extensions = _PREVIEW_EXTENSIONS if capture_kind == "preview" else _RAW_EXTENSIONS
+    target_dir = (root / normalized).resolve()
+    try:
+        target_dir.relative_to(root)
+    except ValueError:
+        abort(404)
+    if not target_dir.exists() or not target_dir.is_dir():
+        abort(404)
+    archive_stream = _zip_capture_directory(target_dir, extensions)
+    if archive_stream is None:
+        abort(404)
+    download_label = f"{normalized.name}-{capture_kind}.zip"
+    return send_file(
+        archive_stream,
+        mimetype="application/zip",
+        as_attachment=True,
+        download_name=download_label,
+    )
 
 
 @app.route("/api/health")

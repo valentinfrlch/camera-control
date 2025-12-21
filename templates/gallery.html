@@ -62,161 +62,376 @@
         <section class="mx-auto flex w-full max-w-6xl flex-col gap-8">
             {% if gallery_items %}
             <div class="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+                {% set day_scope = namespace(current_key=None) %}
                 {% for item in gallery_items %}
-                <article class="rounded-2xl border border-white/10 bg-slateglass/80 backdrop-blur">
-                    <div class="relative">
-                        <button type="button" class="rounded-2xl group relative block w-full overflow-hidden"
-                            data-lightbox-trigger
-                            data-lightbox-src="{{ url_for('serve_preview', filename=item.cover_path) }}"
-                            data-lightbox-label="{{ item.timestamp_label|replace('\n', ' ') }}"
-                            data-lightbox-type="{{ item.type }}"
-                            data-lightbox-images='{{ item.images|tojson|safe }}'>
-                            <div class="relative aspect-[4/3] overflow-hidden">
-                                <img src="{{ url_for('serve_preview', filename=item.cover_path) }}"
-                                    alt="Capture from {{ item.timestamp_label }}"
-                                    class="h-full w-full object-cover transition duration-500 group-hover:scale-105 rounded-2xl" />
-                                <div
-                                    class="absolute inset-0 bg-gradient-to-t from-black/30 via-transparent to-transparent">
-                                </div>
-                                {% if item.type == 'burst' %}
-                                <div
-                                    class="absolute top-4 right-4 inline-flex items-center gap-1 rounded-full bg-black/60 px-3 py-1 text-xs font-medium text-white">
-                                    <span class="text-base"><svg xmlns="http://www.w3.org/2000/svg" height="16px"
-                                            viewBox="0 -960 960 960" width="16px" fill="#fff">
-                                            <path
-                                                d="M480-411q-10 0-19.5-2.5T442-421L104-605q-11-6-15.5-15T84-640q0-11 4.5-20t15.5-15l338-184q9-5 18.5-7.5T480-869q10 0 19.5 2.5T518-859l338 184q11 6 15.5 15t4.5 20q0 11-4.5 20T856-605L518-421q-9 5-18.5 7.5T480-411Zm0-80 273-149-273-149-273 149 273 149Zm0-149Zm0 309 314-171q2-1 19-5 17 0 28.5 11.5T853-467q0 11-5 20t-16 15L518-261q-9 5-18.5 7.5T480-251q-10 0-19.5-2.5T442-261L128-432q-11-6-16-15t-5-20q0-17 11.5-28.5T147-507q5 0 9.5 1.5t9.5 3.5l314 171Zm0 160 314-171q2-1 19-5 17 0 28.5 11.5T853-307q0 11-5 20t-16 15L518-101q-9 5-18.5 7.5T480-91q-10 0-19.5-2.5T442-101L128-272q-11-6-16-15t-5-20q0-17 11.5-28.5T147-347q5 0 9.5 1.5t9.5 3.5l314 171Z" />
-                                        </svg></span>
-                                    <span>{{ item.count }}</span>
-                                </div>
-                                {%elif item.type == 'timelapse'%}
-                                <div
-                                    class="absolute top-4 right-4 inline-flex items-center gap-1 rounded-full bg-black/60 px-3 py-1 text-xs font-medium text-white">
-                                    <span class="text-base"><svg xmlns="http://www.w3.org/2000/svg" height="16px"
-                                            viewBox="0 -960 960 960" width="16px" fill="#fff">
-                                            <path
-                                                d="M610-760q-21 0-35.5-14.5T560-810q0-21 14.5-35.5T610-860q21 0 35.5 14.5T660-810q0 21-14.5 35.5T610-760Zm0 660q-21 0-35.5-14.5T560-150q0-21 14.5-35.5T610-200q21 0 35.5 14.5T660-150q0 21-14.5 35.5T610-100Zm160-520q-21 0-35.5-14.5T720-670q0-21 14.5-35.5T770-720q21 0 35.5 14.5T820-670q0 21-14.5 35.5T770-620Zm0 380q-21 0-35.5-14.5T720-290q0-21 14.5-35.5T770-340q21 0 35.5 14.5T820-290q0 21-14.5 35.5T770-240Zm60-190q-21 0-35.5-14.5T780-480q0-21 14.5-35.5T830-530q21 0 35.5 14.5T880-480q0 21-14.5 35.5T830-430ZM80-480q0-157 104.5-270T441-878q16-2 27.5 9.5T480-840q0 16-10.5 28T443-798q-121 14-202 104t-81 214q0 125 81 214.5T443-162q16 2 26.5 14t10.5 28q0 17-11.5 28.5T441-82Q288-97 184-210T80-480Zm400 80q-33 0-56.5-23.5T400-480q0-5 .5-10.5T403-501l-55-55q-11-11-11-28t11-28q11-11 28-11t28 11l55 55q4-1 21-3 33 0 56.5 23.5T560-480q0 33-23.5 56.5T480-400Z" />
-                                        </svg></span>
-                                    <span>{{ item.count }}</span>
-                                </div>
-                                {% endif %}
-                            </div>
-                        </button>
-                    </div>
+                <script>
+                    const previewBaseUrl = ("{{ url_for('serve_preview', filename='') }}".trim() || "/previews/").replace(/\/+$/, "/");
+                    const rawBaseUrl = ("{{ url_for('serve_raw', filename='') }}".trim() || "/raw/").replace(/\/+$/, "/");
+                    const stackableTypes = new Set(["burst", "timelapse"]);
 
-                </article>
-                {% endfor %}
-            </div>
-            {% else %}
-            <div class="min-h-[60vh] flex flex-col items-center justify-center text-center">
-                <p class="my-2 text-2xl font-semibold text-slate-200">Nothing here yet</p>
-                <p class="text-lg font-semibold text-slate-500">Connect your camera and take some photos!</p>
+                    const lightbox = document.getElementById("lightbox");
+                    const lightboxImage = document.getElementById("lightbox-image");
+                    const lightboxCaption = document.getElementById("lightbox-caption");
+                    const closeLightboxButton = document.getElementById("lightbox-close");
+                    const lightboxCarousel = document.getElementById("lightbox-carousel");
+                    const lightboxCarouselTrack = document.getElementById("lightbox-carousel-track");
+                    const lightboxFrameCounter = document.getElementById("lightbox-frame-counter");
+                    const moreOptionsButton = document.getElementById("more-options");
+                    const optionsMenu = document.getElementById("lightbox-options-menu");
+                    const downloadPreviewButton = document.getElementById("download-preview");
+                    const downloadRawButton = document.getElementById("download-raw");
+                    const downloadPreviewZipButton = document.getElementById("download-preview-zip");
+                    const downloadRawZipButton = document.getElementById("download-raw-zip");
+                    const rawUnavailableHint = document.getElementById("raw-unavailable-hint");
+                    const stackDownloadGroup = document.getElementById("stack-download-group");
 
-            </div>
-            {% endif %}
-        </section>
-    </main>
+                    let currentLightboxImages = [];
+                    let currentLightboxIndex = 0;
+                    let currentLightboxStack = {
+                        type: null,
+                        captureId: null,
+                        previewZipUrl: null,
+                        rawZipUrl: null,
+                    };
 
-    <div id="lightbox" class="fixed inset-0 z-50 hidden flex flex-col bg-black">
-        <div class="absolute left-0 right-0 top-5 grid grid-cols-3 w-full items-center gap-4 px-5">
-            <button type="button" id="lightbox-close"
-                class="inline-flex h-10 w-10 items-center justify-center rounded-full border border-white/10 bg-white/5 text-sm font-medium text-white transition hover:border-white/30"
-                aria-label="Close preview">
-                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 -960 960 960" class="h-5 w-5 translate-x-[3px]"
-                    fill="#fff" aria-hidden="true">
-                    <path
-                        d="m142-480 294 294q15 15 14.5 35T435-116q-15 15-35 15t-35-15L57-423q-12-12-18-27t-6-30q0-15 6-30t18-27l308-308q15-15 35.5-14.5T436-844q15 15 15 35t-15 35L142-480Z" />
-                </svg>
-            </button>
-            <p id="lightbox-caption" class="flex-1 text-center text-sm text-slate-300"></p>
-            <button type="button" id="lightbox-more-options"
-                class="justify-self-end inline-flex h-10 w-10 items-center justify-center rounded-full border border-white/10 bg-white/5 text-sm font-medium text-white transition hover:border-white/30"
-                aria-label="Options">
-                <svg xmlns="http://www.w3.org/2000/svg" height="24px" viewBox="0 -960 960 960" width="24px" fill="#fff">
-                    <path
-                        d="M240-400q-33 0-56.5-23.5T160-480q0-33 23.5-56.5T240-560q33 0 56.5 23.5T320-480q0 33-23.5 56.5T240-400Zm240 0q-33 0-56.5-23.5T400-480q0-33 23.5-56.5T480-560q33 0 56.5 23.5T560-480q0 33-23.5 56.5T480-400Zm240 0q-33 0-56.5-23.5T640-480q0-33 23.5-56.5T720-560q33 0 56.5 23.5T800-480q0 33-23.5 56.5T720-400Z" />
-                </svg>
-            </button>
-        </div>
-        <div class="flex flex-1 items-center justify-center">
-            <img id="lightbox-image" src="" class="max-h-[80vh] w-full object-contain" />
-        </div>
-        <div id="lightbox-carousel"
-            class="hidden px-6 py-6">
-            <div
-                class="mx-auto flex w-full max-w-5xl items-center justify-between text-[0.65rem] font-semibold uppercase tracking-[0.35em] text-slate-400">
-                <span>Frames</span>
-                <span id="lightbox-frame-counter" class="tracking-normal text-slate-300"></span>
-            </div>
-            <div id="lightbox-carousel-track" class="mx-auto mt-4 flex w-full max-w-5xl gap-3 overflow-x-auto pb-2">
-            </div>
-        </div>
-    </div>
+                    function normalizeLabel(label) {
+                        return (label || "").replace(/\s+/g, " ").trim();
+                    }
 
-    <script>
-            const previewBaseUrl = ("{{ url_for('serve_preview', filename='') }}".trim() || "/previews/").replace(/\/+$/, "/");
-            const lightbox = document.getElementById("lightbox");
-            const lightboxImage = document.getElementById("lightbox-image");
-            const lightboxCaption = document.getElementById("lightbox-caption");
-            const closeLightboxButton = document.getElementById("lightbox-close");
-            const lightboxCarousel = document.getElementById("lightbox-carousel");
-            const lightboxCarouselTrack = document.getElementById("lightbox-carousel-track");
-            const lightboxFrameCounter = document.getElementById("lightbox-frame-counter");
+                    function resolvePreviewSrc(candidate) {
+                        if (!candidate) {
+                            return "";
+                        }
+                        if (/^https?:\/\//i.test(candidate) || candidate.startsWith("/")) {
+                            return candidate;
+                        }
+                        return `${previewBaseUrl}${candidate}`.replace(/([^:]\/)8+/g, "$1");
+                    }
 
-            let currentLightboxImages = [];
-            let currentLightboxIndex = 0;
+                    function prepareImages(rawImages, baseLabel) {
+                        if (!Array.isArray(rawImages)) {
+                            return [];
+                        }
+                        return rawImages
+                            .map((raw) => {
+                                const previewPath = raw && raw.path ? raw.path : null;
+                                const candidateSource = raw && (raw.src || previewPath);
+                                const src = resolvePreviewSrc(candidateSource);
+                                if (!src) {
+                                    return null;
+                                }
+                                const frameLabel = rawImages.length > 1 && baseLabel ? `${baseLabel}` : baseLabel;
+                                return {
+                                    src,
+                                    label: frameLabel,
+                                    filename: raw && raw.filename ? raw.filename : null,
+                                    path: previewPath,
+                                    rawPath: raw && raw.raw_path ? raw.raw_path : null,
+                                };
+                            })
+                            .filter(Boolean);
+                    }
 
-            function normalizeLabel(label) {
-                return (label || "").replace(/\s+/g, " ").trim();
-            }
+                    function updateLightboxImage(index) {
+                        if (!currentLightboxImages.length) {
+                            return;
+                        }
+                        const clampedIndex = Math.max(0, Math.min(index, currentLightboxImages.length - 1));
+                        const frame = currentLightboxImages[clampedIndex];
+                        currentLightboxIndex = clampedIndex;
+                        lightboxImage.src = frame.src;
+                        lightboxImage.alt = frame.label || "Captured frame";
+                        lightboxCaption.textContent = frame.label || "";
+                        updateDownloadControls();
+                    }
 
-            function resolvePreviewSrc(candidate) {
-                if (!candidate) {
-                    return "";
-                }
-                if (/^https?:\/\//i.test(candidate) || candidate.startsWith("/")) {
-                    return candidate;
-                }
-                return `${previewBaseUrl}${candidate}`.replace(/([^:]\/)\+/g, "$1");
-            }
-
-            function prepareImages(rawImages, baseLabel) {
-                if (!Array.isArray(rawImages)) {
-                    return [];
-                }
-                return rawImages
-                    .map((raw, index) => {
-                        const candidateSource = raw && (raw.src || raw.path);
-                        const src = resolvePreviewSrc(candidateSource);
-                        if (!src) {
+                    function buildPreviewDownloadUrl(frame) {
+                        if (!frame) {
                             return null;
                         }
-                        const frameLabel = rawImages.length > 1
-                            ? `${baseLabel ? `${baseLabel} • ` : ""}Frame ${String(index + 1).padStart(2, "0")}`
-                            : baseLabel;
-                        return {
-                            src,
-                            label: frameLabel,
-                            filename: raw && raw.filename ? raw.filename : null,
+                        if (frame.path) {
+                            return resolvePreviewSrc(frame.path);
+                        }
+                        return frame.src || null;
+                    }
+
+                    function buildRawDownloadUrl(frame) {
+                        if (!frame || !frame.rawPath) {
+                            return null;
+                        }
+                        return `${rawBaseUrl}${frame.rawPath}`;
+                    }
+
+                    function triggerDownload(url, filename) {
+                        if (!url) {
+                            return;
+                        }
+                        const anchor = document.createElement("a");
+                        anchor.href = url;
+                        if (filename) {
+                            anchor.download = filename;
+                        }
+                        anchor.rel = "noopener";
+                        document.body.appendChild(anchor);
+                        anchor.click();
+                        document.body.removeChild(anchor);
+                    }
+
+                    function isStackedSelection() {
+                        return stackableTypes.has((currentLightboxStack.type || "").toLowerCase());
+                    }
+
+                    function updateDownloadControls() {
+                        const frame = currentLightboxImages[currentLightboxIndex];
+                        const previewUrl = buildPreviewDownloadUrl(frame);
+                        const rawUrl = buildRawDownloadUrl(frame);
+
+                        if (downloadPreviewButton) {
+                            downloadPreviewButton.disabled = !previewUrl;
+                        }
+                        if (downloadRawButton) {
+                            downloadRawButton.disabled = !rawUrl;
+                        }
+                        if (rawUnavailableHint) {
+                            rawUnavailableHint.classList.toggle("hidden", Boolean(rawUrl));
+                        }
+
+                        const stacked = isStackedSelection();
+                        if (stackDownloadGroup) {
+                            stackDownloadGroup.classList.toggle("hidden", !stacked);
+                        }
+                        if (downloadPreviewZipButton) {
+                            downloadPreviewZipButton.classList.toggle("hidden", !stacked);
+                            downloadPreviewZipButton.disabled = !stacked || !currentLightboxStack.previewZipUrl;
+                        }
+                        if (downloadRawZipButton) {
+                            downloadRawZipButton.classList.toggle("hidden", !stacked);
+                            downloadRawZipButton.disabled = !stacked || !currentLightboxStack.rawZipUrl;
+                        }
+                    }
+
+                    function downloadCurrentFrameAsset(kind) {
+                        if (kind === "preview-zip" || kind === "raw-zip") {
+                            const targetUrl = kind === "preview-zip" ? currentLightboxStack.previewZipUrl : currentLightboxStack.rawZipUrl;
+                            if (!targetUrl) {
+                                updateDownloadControls();
+                                return;
+                            }
+                            const suffix = kind === "preview-zip" ? "previews" : "raw";
+                            const fallback = currentLightboxStack.captureId ? `${currentLightboxStack.captureId}-${suffix}.zip` : `capture-${suffix}.zip`;
+                            triggerDownload(targetUrl, fallback);
+                            hideOptionsMenu();
+                            return;
+                        }
+
+                        if (!currentLightboxImages.length) {
+                            return;
+                        }
+                        const frame = currentLightboxImages[currentLightboxIndex];
+                        if (!frame) {
+                            return;
+                        }
+                        if (kind === "preview") {
+                            const previewUrl = buildPreviewDownloadUrl(frame);
+                            if (!previewUrl) {
+                                return;
+                            }
+                            const fallbackName = frame.filename || "capture-preview.jpg";
+                            triggerDownload(previewUrl, fallbackName);
+                            hideOptionsMenu();
+                            return;
+                        }
+                        const rawUrl = buildRawDownloadUrl(frame);
+                        if (!rawUrl) {
+                            updateDownloadControls();
+                            return;
+                        }
+                        const rawName = frame.rawPath
+                            ? frame.rawPath.split("/").pop()
+                            : (frame.filename || "").replace(/\.[^.]+$/, ".nef");
+                        triggerDownload(rawUrl, rawName || "capture-raw.nef");
+                        hideOptionsMenu();
+                    }
+
+                    function hideOptionsMenu() {
+                        if (!optionsMenu) {
+                            return;
+                        }
+                        optionsMenu.classList.add("hidden");
+                    }
+
+                    function renderLightboxCarousel() {
+                        if (!currentLightboxImages.length || currentLightboxImages.length === 1) {
+                            lightboxCarousel.classList.add("hidden");
+                            lightboxImage.classList.remove("mt-16");
+                            lightboxCarouselTrack.innerHTML = "";
+                            lightboxFrameCounter.textContent = "";
+                            return;
+                        }
+
+                        lightboxCarousel.classList.remove("hidden");
+                        lightboxImage.classList.add("mt-16");
+                        lightboxCarouselTrack.innerHTML = "";
+                        lightboxFrameCounter.textContent = `${currentLightboxIndex + 1} / ${currentLightboxImages.length}`;
+
+                        currentLightboxImages.forEach((image, index) => {
+                            const thumbButton = document.createElement("button");
+                            thumbButton.type = "button";
+                            thumbButton.className = `relative h-20 w-28 flex-shrink-0 overflow-hidden rounded-xl border transition focus:outline-none ${index === currentLightboxIndex
+                                ? "border-aurora shadow-glow"
+                                : "border-white/10 hover:border-white/30"}`;
+                            thumbButton.setAttribute("aria-label", image.label || `Frame ${index + 1}`);
+
+                            const thumbImage = document.createElement("img");
+                            thumbImage.src = image.src;
+                            thumbImage.alt = image.label || `Frame ${index + 1}`;
+                            thumbImage.className = "h-full w-full object-cover";
+                            thumbButton.appendChild(thumbImage);
+
+                            if (index === currentLightboxIndex) {
+                                const indicator = document.createElement("div");
+                                indicator.className = "pointer-events-none absolute inset-0 bg-aurora/10 ring-1 ring-inset ring-aurora/30";
+                                thumbButton.appendChild(indicator);
+                            }
+
+                            thumbButton.addEventListener("click", () => {
+                                updateLightboxImage(index);
+                                renderLightboxCarousel();
+                            });
+
+                            lightboxCarouselTrack.appendChild(thumbButton);
+                        });
+                    }
+
+                    function openLightbox(src, label, rawImages = [], startingIndex = 0, stackMeta = {}) {
+                        const normalizedLabel = normalizeLabel(label);
+                        let preparedImages = prepareImages(rawImages, normalizedLabel);
+                        if (!preparedImages.length && src) {
+                            preparedImages = [{ src, label: normalizedLabel }];
+                        }
+                        currentLightboxImages = preparedImages;
+                        currentLightboxStack = {
+                            type: stackMeta.type || null,
+                            captureId: stackMeta.captureId || null,
+                            previewZipUrl: stackMeta.previewZipUrl || "",
+                            rawZipUrl: stackMeta.rawZipUrl || "",
                         };
-                    })
-                    .filter(Boolean);
-            }
+                        if (!currentLightboxImages.length) {
+                            return;
+                        }
+                        const initialIndex = Number.isNaN(startingIndex)
+                            ? 0
+                            : Math.max(0, Math.min(startingIndex, currentLightboxImages.length - 1));
+                        updateLightboxImage(initialIndex);
+                        renderLightboxCarousel();
+                        lightbox.classList.remove("hidden");
+                        document.body.classList.add("overflow-hidden");
+                    }
 
-            function updateLightboxImage(index) {
-                if (!currentLightboxImages.length) {
-                    return;
-                }
-                const clampedIndex = Math.max(0, Math.min(index, currentLightboxImages.length - 1));
-                const frame = currentLightboxImages[clampedIndex];
-                currentLightboxIndex = clampedIndex;
-                lightboxImage.src = frame.src;
-                lightboxImage.alt = frame.label || "Captured frame";
-                lightboxCaption.textContent = frame.label || "";
-            }
+                    function closeLightbox() {
+                        lightbox.classList.add("hidden");
+                        lightboxImage.src = "";
+                        document.body.classList.remove("overflow-hidden");
+                        lightboxCaption.textContent = "";
+                        currentLightboxImages = [];
+                        currentLightboxIndex = 0;
+                        currentLightboxStack = {
+                            type: null,
+                            captureId: null,
+                            previewZipUrl: null,
+                            rawZipUrl: null,
+                        };
+                        lightboxCarouselTrack.innerHTML = "";
+                        lightboxCarousel.classList.add("hidden");
+                        lightboxFrameCounter.textContent = "";
+                        hideOptionsMenu();
+                    }
 
-            function renderLightboxCarousel() {
-                if (!currentLightboxImages.length || currentLightboxImages.length === 1) {
-                    lightboxCarousel.classList.add("hidden");
+                    document.querySelectorAll("[data-lightbox-trigger]").forEach((trigger) => {
+                        trigger.addEventListener("click", () => {
+                            const src = trigger.getAttribute("data-lightbox-src");
+                            const label = trigger.getAttribute("data-lightbox-label") || "";
+                            const imagesAttr = trigger.getAttribute("data-lightbox-images");
+                            let parsedImages = [];
+                            if (imagesAttr) {
+                                try {
+                                    parsedImages = JSON.parse(imagesAttr);
+                                } catch (error) {
+                                    console.warn("Unable to parse image payload for lightbox", error);
+                                }
+                            }
+                            const startingIndexAttr = trigger.getAttribute("data-lightbox-index");
+                            const startingIndex = startingIndexAttr ? Number.parseInt(startingIndexAttr, 10) : 0;
+                            const stackMeta = {
+                                type: trigger.getAttribute("data-lightbox-type") || "",
+                                captureId: trigger.getAttribute("data-stack-id") || "",
+                                previewZipUrl: trigger.getAttribute("data-stack-preview") || "",
+                                rawZipUrl: trigger.getAttribute("data-stack-raw") || "",
+                            };
+                            openLightbox(
+                                src,
+                                label,
+                                parsedImages,
+                                Number.isNaN(startingIndex) ? 0 : startingIndex,
+                                stackMeta,
+                            );
+                        });
+                    });
+
+                    if (closeLightboxButton) {
+                        closeLightboxButton.addEventListener("click", closeLightbox);
+                    }
+                    if (moreOptionsButton) {
+                        moreOptionsButton.addEventListener("click", () => {
+                            if (!currentLightboxImages.length) {
+                                return;
+                            }
+                            updateDownloadControls();
+                            optionsMenu?.classList.toggle("hidden");
+                        });
+                    }
+                    if (downloadPreviewButton) {
+                        downloadPreviewButton.addEventListener("click", () => downloadCurrentFrameAsset("preview"));
+                    }
+                    if (downloadRawButton) {
+                        downloadRawButton.addEventListener("click", () => downloadCurrentFrameAsset("raw"));
+                    }
+                    if (downloadPreviewZipButton) {
+                        downloadPreviewZipButton.addEventListener("click", () => downloadCurrentFrameAsset("preview-zip"));
+                    }
+                    if (downloadRawZipButton) {
+                        downloadRawZipButton.addEventListener("click", () => downloadCurrentFrameAsset("raw-zip"));
+                    }
+                    if (lightbox) {
+                        lightbox.addEventListener("click", (event) => {
+                            if (event.target === lightbox) {
+                                closeLightbox();
+                            }
+                        });
+                    }
+                    document.addEventListener("click", (event) => {
+                        if (!optionsMenu || optionsMenu.classList.contains("hidden")) {
+                            return;
+                        }
+                        if (optionsMenu.contains(event.target) || (moreOptionsButton && moreOptionsButton.contains(event.target))) {
+                            return;
+                        }
+                        hideOptionsMenu();
+                    });
+                    document.addEventListener("keydown", (event) => {
+                        if (event.key !== "Escape") {
+                            return;
+                        }
+                        if (optionsMenu && !optionsMenu.classList.contains("hidden")) {
+                            hideOptionsMenu();
+                            return;
+                        }
+                        if (!lightbox.classList.contains("hidden")) {
+                            closeLightbox();
+                        }
+                    });
+                    closeLightbox();
+                </script>
                     lightboxImage.classList.remove("mt-16");
                     lightboxCarouselTrack.innerHTML = "";
                     lightboxFrameCounter.textContent = "";
@@ -286,6 +501,7 @@
             lightboxCarouselTrack.innerHTML = "";
             lightboxCarousel.classList.add("hidden");
             lightboxFrameCounter.textContent = "";
+            hideOptionsMenu();
         }
 
         document.querySelectorAll("[data-lightbox-trigger]").forEach((trigger) => {
@@ -308,13 +524,38 @@
         });
 
         closeLightboxButton.addEventListener("click", closeLightbox);
+            moreOptionsButton.addEventListener("click", () => {
+                if (!currentLightboxImages.length) {
+                    return;
+                }
+                updateDownloadControls();
+                optionsMenu.classList.toggle("hidden");
+            });
+            downloadPreviewButton.addEventListener("click", () => downloadCurrentFrameAsset("preview"));
+            downloadRawButton.addEventListener("click", () => downloadCurrentFrameAsset("raw"));
         lightbox.addEventListener("click", (event) => {
             if (event.target === lightbox) {
                 closeLightbox();
             }
         });
+            document.addEventListener("click", (event) => {
+                if (optionsMenu.classList.contains("hidden")) {
+                    return;
+                }
+                if (optionsMenu.contains(event.target) || moreOptionsButton.contains(event.target)) {
+                    return;
+                }
+                hideOptionsMenu();
+            });
         document.addEventListener("keydown", (event) => {
-            if (event.key === "Escape" && !lightbox.classList.contains("hidden")) {
+            if (event.key !== "Escape") {
+                return;
+            }
+            if (!optionsMenu.classList.contains("hidden")) {
+                hideOptionsMenu();
+                return;
+            }
+            if (!lightbox.classList.contains("hidden")) {
                 closeLightbox();
             }
         });
