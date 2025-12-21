@@ -97,9 +97,9 @@ class Camera:
                     pass
             self._stop_preview_process(proc, reader_thread)
 
-    def capture_single(self) -> Path:
-        """Capture a images in burst mode."""
-        destination = self._default_capture_path()
+    def capture_single(self, destination_dir: Optional[Path] = None) -> Path:
+        """Capture a single image, optionally forcing the destination directory."""
+        destination = self._default_capture_path(destination_dir)
         destination.parent.mkdir(parents=True, exist_ok=True)
 
         cmd = [
@@ -166,9 +166,10 @@ class Camera:
 
         return burst_dir
 
-    def _default_capture_path(self) -> Path:
+    def _default_capture_path(self, parent_dir: Optional[Path] = None) -> Path:
         timestamp = datetime.now().strftime("%Y%m%d-%H%M%S")
-        return self.capture_dir / f"capture-{timestamp}.nef"
+        target_dir = parent_dir or self.capture_dir
+        return target_dir / f"capture-{timestamp}.nef"
 
     @staticmethod
     def _convert_to_jpeg(nef_path: Path) -> Path:
