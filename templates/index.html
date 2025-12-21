@@ -35,8 +35,6 @@
     </script>
 </head>
 
-<!--TODO: Fix tabbar and capture button to bottom!-->
-
 <body class="min-h-screen bg-black text-slate-100 font-display relative overflow-hidden">
     <div class="hidden pointer-events-none absolute inset-0">
         <div
@@ -52,28 +50,27 @@
             </div>
         </div>
     </header>
-    <main class="relative z-10 flex flex-col items-center px-2 py-3 lg:flex-row lg:items-stretch lg:px-5 lg:py-6 gap-8">
+    <main class="relative z-10 flex flex-col items-center lg:flex-row lg:items-stretch lg:px-5 lg:py-6 gap-8">
         <section class="max-w-6xl w-full h-full justify-center items-center flex flex-col mx-auto">
             <figure
-                class="w-full h-full min-h-[350px] rounded-2xl border border-white/10 overflow-hidden justify-center items-center">
+                class="w-full h-full min-h-[350px] md:mt-0 mt-12 md:rounded-2xl md:border md:border-white/10 overflow-hidden justify-center items-center">
                 <div class="relative">
                     <img class="w-full h-full object-fit" src="{{ stream_url }}" alt="Live camera feed" />
                 </div>
             </figure>
-            <div id="capture-controls" class="fixed bottom-10 left-0 right-0 w-full bg-black pt-4">
+            <div id="capture-controls"
+                class="fixed bottom-10 left-1/2 -translate-x-1/2 w-full md:max-w-[40vw] bg-black pt-4 px-4 transform">
                 <div id="secondary-controls" class="px-4">
-                    <div class="grid w-full max-w-3xl grid-cols-1 gap-6 md:grid-cols-2"
+                    <div class="grid w-full grid-cols-1 gap-6 md:grid-cols-2"
                         data-visible-modes="auto,manual">
 
-                        <div class="flex flex-col items-center gap-2 text-center md:items-start md:text-left"
+                        <div class="flex flex-col items-center gap-2 text-center rounded-full md:items-start md:text-left"
                             data-visible-modes="auto">
                             <label for="capture-profile"
-                                class="w-full text-xxs uppercase tracking-[0.3em] text-slate-400">Object
-                                to
-                                Capture</label>
+                                class="w-full text-xxs uppercase tracking-[0.3em] text-slate-400 text-center">Trigger Object</label>
                             <div class="relative inline-flex w-full max-w-sm">
                                 <select id="capture-profile"
-                                    class="appearance-none w-full min-w-[260px] rounded-full border border-white/10 bg-slateglass px-6 py-3 pr-10 text-sm font-medium tracking-wide text-slate-100 focus:outline-none focus:ring-2 focus:ring-aurora/60">
+                                    class="appearance-none w-full min-w-[100px] rounded-full border border-white/10 bg-slateglass px-6 py-3 pr-10 text-sm font-medium tracking-wide text-slate-100 focus:outline-none focus:ring-2 focus:ring-aurora/60">
                                     <!--Populate with options dynamically. Loaded from /api/labels-->
                                 </select>
                                 <span
@@ -84,13 +81,13 @@
                         </div>
 
 
-                        <div class="flex flex-col items-center gap-2 text-center md:items-start md:text-left"
+                        <div class="flex flex-col items-center gap-2 text-center rounded-full md:items-start md:text-left"
                             data-visible-modes="auto,manual">
-                            <label class="w-full text-xxs uppercase tracking-[0.3em] text-slate-400">Mode</label>
+                            <label class="w-full text-xxs uppercase tracking-[0.3em] text-slate-400 text-center">Mode</label>
                             <div
-                                class="flex w-full flex-row items-center justify-center gap-3 overflow-x-auto flex-nowrap md:justify-start">
+                                class="flex w-full flex-row items-center justify-center rounded-full gap-3 overflow-x-auto flex-nowrap md:justify-start">
                                 <nav
-                                    class="inline-flex shrink-0 justify-center gap-1 rounded-full border border-white/10 px-1 py-1 my-1">
+                                    class="inline-flex shrink-0 justify-center gap-1 rounded-full border border-white/10 px-1 py-1 my-1 mx-1">
                                     <button type="button" data-shoot-mode="single"
                                         class="rounded-full bg-white/10 px-5 py-2 text-sm font-medium tracking-wide text-white shadow-glow">
                                         I
@@ -166,7 +163,7 @@
                             </div>
                         </div>
                         <div class="px-5 pt-4 text-center md:text-left">
-                            <p id="timelapse-summary" class="text-xxs uppercase tracking-[0.3em] text-aurora hidden">
+                            <p id="timelapse-summary" class="text-xxs uppercase tracking-[0.3em] text-aurora hidden text-center">
                             </p>
                             <p id="timelapse-status" class="hidden mt-4 text-sm text-slate-400">
                                 Press to start recording

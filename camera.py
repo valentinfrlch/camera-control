@@ -177,6 +177,16 @@ class Camera:
         with rawpy.imread(str(nef_path)) as raw:
             rgb = raw.postprocess(rawpy.Params(use_camera_wb=True))  # type: ignore
 
+            # downscale to max 1920 width for previews
+            height, width = rgb.shape[:2]
+            if width > 1920:
+                scale = 1920 / width
+                rgb = cv2.resize(
+                    rgb,
+                    (int(width * scale), int(height * scale)),
+                    interpolation=cv2.INTER_AREA,
+                )
+
         raw_root = Path("captures/raw")
         preview_root = Path("captures/previews")
         try:
