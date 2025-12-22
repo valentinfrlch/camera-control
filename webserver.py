@@ -4,6 +4,7 @@ import queue
 import re
 import threading
 import time
+import webbrowser
 import zipfile
 from datetime import datetime, timedelta
 from pathlib import Path
@@ -21,7 +22,6 @@ from flask import (
     send_from_directory,
     url_for,
 )
-
 from camera import Camera
 from object_recognition import ObjectRecognizer
 
@@ -79,9 +79,12 @@ _timelapse_status: Dict[str, object] = {
 
 _timelapse_capture_dir: Optional[Path] = None
 
-_BASE_DIR = Path(__file__).resolve().parent
+_BASE_DIR = Path().home() / "Documents" / "Camera Control"
+_BASE_DIR.mkdir(parents=True, exist_ok=True)
 _PREVIEW_ROOT = (_BASE_DIR / "captures/previews").resolve()
+_PREVIEW_ROOT.mkdir(parents=True, exist_ok=True)
 _RAW_ROOT = (_BASE_DIR / "captures/raw").resolve()
+_RAW_ROOT.mkdir(parents=True, exist_ok=True)
 _PREVIEW_EXTENSIONS = {".jpg", ".jpeg", ".png"}
 _RAW_EXTENSIONS = {".nef"}
 _TIMESTAMP_PATTERN = re.compile(r"(\d{8}-\d{6})")
@@ -90,6 +93,18 @@ _GROUPED_CAPTURE_PREFIXES = {
     "burst-": "burst",
     _TIMELAPSE_DIRECTORY_PREFIX: "timelapse",
 }
+
+
+def _schedule_browser_launch(url: str, delay_seconds: float = 1.0) -> None:
+    """Open the default browser after a small delay once the server starts."""
+
+    def _open() -> None:
+        try:
+            webbrowser.open(url)
+        except Exception as exc:  # noqa: BLE001 - just log failures
+            print(f"Unable to open browser automatically: {exc}")
+
+    threading.Timer(delay_seconds, _open).start()
 
 
 def _parse_capture_timestamp(value: str) -> Optional[datetime]:
@@ -177,14 +192,19 @@ def _resolve_capture_directory(root: Path, capture_id: str) -> Optional[Path]:
     return target_dir
 
 
-def _zip_capture_directory(source_dir: Path, allowed_extensions: Optional[set] = None) -> Optional[io.BytesIO]:
+def _zip_capture_directory(
+    source_dir: Path, allowed_extensions: Optional[set] = None
+) -> Optional[io.BytesIO]:
     archive_stream = io.BytesIO()
     file_count = 0
     with zipfile.ZipFile(archive_stream, "w", zipfile.ZIP_DEFLATED) as bundle:
         for file_path in sorted(source_dir.rglob("*")):
             if file_path.is_dir():
                 continue
-            if allowed_extensions and file_path.suffix.lower() not in allowed_extensions:
+            if (
+                allowed_extensions
+                and file_path.suffix.lower() not in allowed_extensions
+            ):
                 continue
             arcname = file_path.relative_to(source_dir).as_posix()
             bundle.write(file_path, arcname=arcname)
@@ -317,7 +337,9 @@ def _capture_settings_payload() -> Dict[str, object]:
     return {"mode": _shoot_mode, "burst_count": _burst_count}
 
 
-def _planned_timelapse_captures(interval_seconds: float, duration_seconds: float) -> int:
+def _planned_timelapse_captures(
+    interval_seconds: float, duration_seconds: float
+) -> int:
     if interval_seconds <= 0 or duration_seconds <= 0:
         return 0
     planned = int(duration_seconds // interval_seconds) + 1
@@ -354,11 +376,15 @@ def _perform_timelapse_capture() -> Optional[str]:
         _stream_thread = None
         _frame_queue = None
         try:
-            capture_path = _camera.capture_single(destination_dir=_timelapse_capture_dir)
+            capture_path = _camera.capture_single(
+                destination_dir=_timelapse_capture_dir
+            )
             print(f"Timelapse capture saved to {capture_path}")
         finally:
             try:
-                _stream_proc, _stream_thread, _frame_queue = _camera.start_live_preview_stream()
+                _stream_proc, _stream_thread, _frame_queue = (
+                    _camera.start_live_preview_stream()
+                )
             except Exception as restart_error:
                 print(
                     f"Unable to restart live preview stream after timelapse capture: {restart_error}"
@@ -383,9 +409,9 @@ def _timelapse_worker(
             continue
         try:
             _perform_timelapse_capture()
-            _timelapse_status["captures_completed"] = int(
-                _timelapse_status.get("captures_completed", 0)
-            ) + 1
+            _timelapse_status["captures_completed"] = (
+                int(_timelapse_status.get("captures_completed", 0)) + 1
+            )
         except Exception as exc:  # noqa: BLE001 - surface capture issues in logs
             _timelapse_status["last_error"] = str(exc)
             print(f"Timelapse capture failed: {exc}")
@@ -410,7 +436,9 @@ def _start_timelapse(interval_seconds: float, duration_seconds: float) -> None:
     resolved_duration = float(duration_seconds)
     timestamp_label = datetime.utcnow().strftime(_TIMESTAMP_FORMAT)
     base_capture_dir = getattr(_camera, "capture_dir", Path("captures/raw"))
-    timelapse_dir = Path(base_capture_dir) / f"{_TIMELAPSE_DIRECTORY_PREFIX}{timestamp_label}"
+    timelapse_dir = (
+        Path(base_capture_dir) / f"{_TIMELAPSE_DIRECTORY_PREFIX}{timestamp_label}"
+    )
     timelapse_dir.mkdir(parents=True, exist_ok=True)
     _timelapse_capture_dir = timelapse_dir
     stop_event = threading.Event()
@@ -427,7 +455,9 @@ def _start_timelapse(interval_seconds: float, duration_seconds: float) -> None:
             "interval_seconds": resolved_interval,
             "duration_seconds": resolved_duration,
             "captures_completed": 0,
-            "planned_captures": _planned_timelapse_captures(resolved_interval, resolved_duration),
+            "planned_captures": _planned_timelapse_captures(
+                resolved_interval, resolved_duration
+            ),
             "started_at": datetime.utcnow(),
             "ended_at": None,
             "last_error": None,
@@ -465,8 +495,10 @@ def _shutdown_timelapse() -> None:
         _stop_timelapse(force=True)
     except Exception as exc:  # noqa: BLE001 - avoid noisy shutdowns
         print(f"Error while stopping timelapse thread: {exc}")
+
+
 def _shutdown_stream() -> None:
-    global _stream_proc, _frame_queue
+    global _stream_proc, _frame_queue, _camera
     proc = _stream_proc
     if proc is not None and proc.poll() is None:
         proc.terminate()
@@ -476,6 +508,11 @@ def _shutdown_stream() -> None:
             proc.kill()
     _stream_proc = None
     _frame_queue = None
+    if _camera is not None:
+        try:
+            _camera._set_state("disconnected")
+        except Exception:
+            pass
 
 
 def _ensure_stream_queue() -> Optional["queue.Queue"]:
@@ -702,7 +739,16 @@ def download_stack(capture_id: str, kind: str) -> Response:
 @app.route("/api/health")
 def health():
     stream_ready = _stream_proc is not None and _stream_proc.poll() is None
-    return jsonify({"status": "ok" if stream_ready else "connecting"})
+    camera_state = getattr(_camera, "state", "disconnected")
+    return jsonify(
+        {
+            "status": (
+                "ok"
+                if stream_ready and camera_state == "ready"
+                else "capturing" if camera_state == "capturing" else "connecting"
+            ),
+        }
+    )
 
 
 @app.route("/api/labels", methods=["GET"])
@@ -769,7 +815,10 @@ def api_capture_mode() -> Response:
         data = request.get_json(silent=True) or {}
         requested_enabled = bool(data.get("enabled"))
         if requested_enabled and _active_ui_mode != _MODE_AUTO:
-            return jsonify({"error": "Auto capture is only available in Auto mode"}), 400
+            return (
+                jsonify({"error": "Auto capture is only available in Auto mode"}),
+                400,
+            )
         _auto_capture_enabled = requested_enabled and _active_ui_mode == _MODE_AUTO
     if _active_ui_mode != _MODE_AUTO and _auto_capture_enabled:
         _auto_capture_enabled = False
@@ -801,7 +850,11 @@ def api_manual_capture() -> Response:
         return jsonify({"error": "Timelapse is currently running"}), 409
     if _active_ui_mode != _MODE_MANUAL:
         return (
-            jsonify({"error": "Manual capture is only available while Manual mode is active"}),
+            jsonify(
+                {
+                    "error": "Manual capture is only available while Manual mode is active"
+                }
+            ),
             409,
         )
     data = request.get_json(silent=True) or {}
@@ -845,7 +898,9 @@ def api_manual_capture() -> Response:
             error_message = str(exc)
         finally:
             try:
-                _stream_proc, _stream_thread, _frame_queue = _camera.start_live_preview_stream()
+                _stream_proc, _stream_thread, _frame_queue = (
+                    _camera.start_live_preview_stream()
+                )
             except Exception as restart_error:
                 print(f"Unable to restart live preview stream: {restart_error}")
                 _stream_proc = None
@@ -859,7 +914,9 @@ def api_manual_capture() -> Response:
         {
             "status": "ok",
             "mode": requested_mode,
-            "burst_count": resolved_burst_count if requested_mode == _SHOOT_MODE_BURST else None,
+            "burst_count": (
+                resolved_burst_count if requested_mode == _SHOOT_MODE_BURST else None
+            ),
             "path": str(capture_path) if capture_path is not None else None,
         }
     )
@@ -883,19 +940,29 @@ def api_timelapse() -> Response:
         return jsonify({"error": "Camera unavailable"}), 503
     if _active_ui_mode != _MODE_TIMELAPSE:
         return (
-            jsonify({"error": "Timelapse can only start while Timelapse mode is active"}),
+            jsonify(
+                {"error": "Timelapse can only start while Timelapse mode is active"}
+            ),
             409,
         )
     if _timelapse_status.get("active"):
         return jsonify({"error": "Timelapse already running"}), 409
 
     try:
-        interval_value = int(float(data.get("interval_seconds", _timelapse_status["interval_seconds"])))
-        duration_value = int(float(data.get("duration_seconds", _timelapse_status["duration_seconds"])))
+        interval_value = int(
+            float(data.get("interval_seconds", _timelapse_status["interval_seconds"]))
+        )
+        duration_value = int(
+            float(data.get("duration_seconds", _timelapse_status["duration_seconds"]))
+        )
     except (TypeError, ValueError):
         return jsonify({"error": "Invalid interval or duration"}), 400
 
-    if not (_TIMELAPSE_MIN_INTERVAL_SECONDS <= interval_value <= _TIMELAPSE_MAX_INTERVAL_SECONDS):
+    if not (
+        _TIMELAPSE_MIN_INTERVAL_SECONDS
+        <= interval_value
+        <= _TIMELAPSE_MAX_INTERVAL_SECONDS
+    ):
         return (
             jsonify(
                 {
@@ -904,7 +971,11 @@ def api_timelapse() -> Response:
             ),
             400,
         )
-    if not (_TIMELAPSE_MIN_DURATION_SECONDS <= duration_value <= _TIMELAPSE_MAX_DURATION_SECONDS):
+    if not (
+        _TIMELAPSE_MIN_DURATION_SECONDS
+        <= duration_value
+        <= _TIMELAPSE_MAX_DURATION_SECONDS
+    ):
         return (
             jsonify(
                 {
@@ -922,4 +993,5 @@ atexit.register(_shutdown_stream)
 atexit.register(_shutdown_timelapse)
 
 if __name__ == "__main__":
+    _schedule_browser_launch("http://127.0.0.1:8000/", delay_seconds=1.5)
     app.run(host="0.0.0.0", port=8000, threaded=True, debug=True)

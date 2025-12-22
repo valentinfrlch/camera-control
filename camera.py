@@ -15,13 +15,16 @@ if TYPE_CHECKING:
 
 
 class Camera:
+    _VALID_STATES = {"disconnected", "ready", "capturing"}
+
     def __init__(self, auto_release=True, capture_confidence_threshold: float = 0.6):
         self.auto_release = auto_release
-        self.capture_dir = Path("captures/raw")
+        self.capture_dir = Path().home() / "Documents" / "Camera Control" / "captures" / "raw"
         self.capture_cooldown_seconds = 3.0
         self.capture_confidence_threshold = capture_confidence_threshold
         self._last_capture_timestamp = 0.0
         self._frame_queue: Optional["queue.Queue"] = None
+        self.state = "disconnected"
         if self.auto_release:
             self._release_ptpcamera()
 
@@ -101,6 +104,8 @@ class Camera:
         """Capture a single image, optionally forcing the destination directory."""
         destination = self._default_capture_path(destination_dir)
         destination.parent.mkdir(parents=True, exist_ok=True)
+        previous_state = self.state
+        self._set_state("capturing")
 
         cmd = [
             "gphoto2",
@@ -113,22 +118,25 @@ class Camera:
             subprocess.run(
                 cmd, check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL
             )
+            if not destination.exists():
+                raise RuntimeError("gphoto2 reported success but no file was created")
+            self._convert_to_jpeg(destination)
+            return destination
         except FileNotFoundError as err:
             raise RuntimeError("gphoto2 is not installed or not found in PATH") from err
         except subprocess.CalledProcessError as err:
             raise RuntimeError(f"gphoto2 failed to capture image: {err}") from err
-
-        if not destination.exists():
-            raise RuntimeError("gphoto2 reported success but no file was created")
-        # convert to jpeg
-        self._convert_to_jpeg(destination)
-        return destination
+        finally:
+            fallback_state = self._state_after_capture(previous_state)
+            self._set_state(fallback_state)
 
     def capture_burst(self, burst_count: int = 3) -> Path:
         """Capture multiple images in burst mode and store them in a unique folder."""
         timestamp = datetime.now().strftime("%Y%m%d-%H%M%S")
         burst_dir = self.capture_dir / f"burst-{timestamp}"
         burst_dir.mkdir(parents=True, exist_ok=True)
+        previous_state = self.state
+        self._set_state("capturing")
 
         # Use gphoto2's %n placeholder so every frame in the burst keeps a unique filename.
         filename_template = burst_dir / "capture-%03n.nef"
@@ -149,30 +157,31 @@ class Camera:
             subprocess.run(
                 cmd, check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL
             )
+            captured_files = sorted(burst_dir.glob("*.nef"))
+            if not captured_files:
+                raise RuntimeError(
+                    "gphoto2 reported success but no burst files were created"
+                )
+
+            # convert all to jpeg, ensure burst directory for previews exists and jpgs go there
+            for nef_path in captured_files:
+                self._convert_to_jpeg(nef_path)
+
+            return burst_dir
         except FileNotFoundError as err:
             raise RuntimeError("gphoto2 is not installed or not found in PATH") from err
         except subprocess.CalledProcessError as err:
             raise RuntimeError(f"gphoto2 failed to capture image: {err}") from err
-
-        captured_files = sorted(burst_dir.glob("*.nef"))
-        if not captured_files:
-            raise RuntimeError(
-                "gphoto2 reported success but no burst files were created"
-            )
-
-        # convert all to jpeg, ensure burst directory for previews exists and jpgs go there
-        for nef_path in captured_files:
-            self._convert_to_jpeg(nef_path)
-
-        return burst_dir
+        finally:
+            fallback_state = self._state_after_capture(previous_state)
+            self._set_state(fallback_state)
 
     def _default_capture_path(self, parent_dir: Optional[Path] = None) -> Path:
         timestamp = datetime.now().strftime("%Y%m%d-%H%M%S")
-        target_dir = parent_dir or self.capture_dir
+        target_dir = self.capture_dir
         return target_dir / f"capture-{timestamp}.nef"
 
-    @staticmethod
-    def _convert_to_jpeg(nef_path: Path) -> Path:
+    def _convert_to_jpeg(self, nef_path: Path) -> Path:
         """Convert a NEF stored under captures/raw into a mirrored previews JPG."""
         with rawpy.imread(str(nef_path)) as raw:
             rgb = raw.postprocess(rawpy.Params(use_camera_wb=True))  # type: ignore
@@ -187,8 +196,8 @@ class Camera:
                     interpolation=cv2.INTER_AREA,
                 )
 
-        raw_root = Path("captures/raw")
-        preview_root = Path("captures/previews")
+        raw_root = self.capture_dir
+        preview_root = self.capture_dir.parent / "previews"
         try:
             relative_path = nef_path.relative_to(raw_root)
             jpeg_path = preview_root / relative_path
@@ -247,6 +256,7 @@ class Camera:
 
         t = threading.Thread(target=reader, daemon=True)
         t.start()
+        self._set_state("ready")
         return proc, t, frame_queue
 
     def _should_trigger_capture(
@@ -332,3 +342,14 @@ class Camera:
                     pass
         if reader_thread is not None and reader_thread.is_alive():
             reader_thread.join(timeout=2)
+        self._set_state("disconnected")
+
+    def _set_state(self, value: str) -> None:
+        if value not in self._VALID_STATES:
+            raise ValueError(f"Invalid camera state: {value}")
+        self.state = value
+
+    def _state_after_capture(self, previous_state: str) -> str:
+        if previous_state in self._VALID_STATES and previous_state != "capturing":
+            return previous_state
+        return "ready"

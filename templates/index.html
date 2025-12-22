@@ -5,8 +5,6 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Camera Live Preview</title>
-    <link rel="preconnect" href="https://fonts.googleapis.com" />
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600&display=swap"
         rel="stylesheet" />
     <script src="https://cdn.tailwindcss.com"></script>
@@ -58,9 +56,12 @@
     </div>
     <header class="relative z-10 flex max-w-full flex-col items-center gap-4 px-6 pt-5 lg:px-12">
         <div class="flex justify-center">
-            <div
-                class="flex items-center gap-2 rounded-full border border-white/10 bg-slateglass px-4 py-2 backdrop-blur">
-                <span id="status-indicator" class="h-2.5 w-2.5 rounded-full bg-aurora animate-pulse"></span>
+            <div id="status-container" class="flex items-center gap-2 px-4 py-2 backdrop-blur">
+                <span id="status-indicator" class="animate-pulse"><svg xmlns="http://www.w3.org/2000/svg" height="24px"
+                        viewBox="0 -960 960 960" width="24px" fill="currentColor">
+                        <path
+                            d="M152-160q-23 0-35-20.5t1-40.5l328-525q12-19 34-19t34 19l328 525q13 20 1 40.5T808-160H152Zm72-80h512L480-650 224-240Zm256-205Z" />
+                    </svg></span>
                 <span id="status" class="text-sm uppercase tracking-wide">Connecting...</span>
             </div>
         </div>
@@ -70,7 +71,13 @@
             <figure
                 class="w-full h-full min-h-[350px] md:mt-0 mt-12 md:rounded-2xl overflow-hidden justify-center items-center">
                 <div class="relative">
-                    <img class="w-full h-full object-fit" src="{{ stream_url }}" alt="Live camera feed" />
+                    <div class="absolute inset-0 grid place-items-center pointer-events-none">
+                        <div id="capture-progress" class="hidden z-20 flex flex-col items-center gap-3">
+                            <span class="h-8 w-8 border-2 border-slate-300 border-t-transparent rounded-full animate-spin"></span>
+                            <p class="text-sm text-center text-slate-300">Capture in progress...</p>
+                        </div>
+                    </div>
+                    <img id="stream-preview-img" class="w-full h-full object-fit transition-blur transition duration-150" src="{{ stream_url }}" alt="Live camera feed" />
                 </div>
             </figure>
             <div id="capture-controls"
@@ -946,19 +953,42 @@
         async function pollHealth() {
             const statusEl = document.getElementById("status");
             const statusIndicatorEl = document.getElementById("status-indicator");
+            const statusContainerEl = document.getElementById("status-container");
+            const streamPreviewEl = document.getElementById("stream-preview-img");
+            const captureProgressEl = document.getElementById("capture-progress");
             try {
                 const response = await fetch("/api/health");
                 const data = await response.json();
-                const isHealthy = data?.status === "ok";
-                statusEl.textContent = isHealthy ? "Online" : "Offline";
-                statusEl.classList.toggle("text-emerald-400", isHealthy);
-                statusEl.classList.toggle("text-red-400", !isHealthy);
-                statusIndicatorEl.classList.toggle("bg-emerald-400", isHealthy);
-                statusIndicatorEl.classList.toggle("bg-red-400", !isHealthy);
+                console.log("Health check", data);
+                const status = data?.status || "disconnected";
+
+                switch (status) {
+                    case "ok":
+                        statusContainerEl.classList.add("text-transparent");
+                        statusContainerEl.classList.remove("text-ember")
+                        streamPreviewEl.classList.remove("blur-md");
+                        captureProgressEl.classList.add("hidden");
+                        break;
+                    case "capturing":
+                        streamPreviewEl.classList.add("blur-md");
+                        captureProgressEl.classList.remove("hidden");
+                        break;
+                    case "connecting":
+                        statusContainerEl.classList.remove("text-transparent");
+                        statusEl.textContent = "Waiting for Camera...";
+                        statusContainerEl.classList.add("text-ember");
+                        streamPreviewEl.classList.add("blur-md");
+                        captureProgressEl.classList.add("hidden");
+                        break;
+                    default:
+                        statusContainerEl.classList.remove("hidden");
+                        statusEl.textContent = "Waiting for Camera...";
+                        break;
+                }
             } catch (error) {
                 console.error("Health check failed", error);
             } finally {
-                setTimeout(pollHealth, 5000);
+                setTimeout(pollHealth, 1000);
             }
         }
         pollHealth();

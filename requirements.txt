@@ -1,0 +1,5 @@
+opencv-python
+numpy
+rawpy
+torch
+Flask

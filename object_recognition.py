@@ -4,6 +4,9 @@ from typing import Dict, List, Optional, Tuple
 import cv2
 import numpy as np
 import torch
+import os
+os.environ.setdefault("ULTRALYTICS_IGNORE_SAM", "1")
+
 from ultralytics import YOLO
 
 COLOR_PALETTE = np.array(
