@@ -5,6 +5,12 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Camera Live Preview</title>
+    <link rel="icon" type="image/png" href="/static/favicon/favicon-96x96.png" sizes="96x96" />
+    <link rel="icon" type="image/svg+xml" href="/static/favicon/favicon.svg" />
+    <link rel="shortcut icon" href="/static/favicon/favicon.ico" />
+    <link rel="apple-touch-icon" sizes="180x180" href="/static/favicon/apple-touch-icon.png" />
+    <meta name="apple-mobile-web-app-title" content="MyWebSite" />
+    <link rel="manifest" href="/static/favicon/site.webmanifest" />
     <link href="{{ url_for('static', filename='SpaceGrotesk.css') }}" rel="stylesheet" />
     <script src="{{ url_for('static', filename='tailwindcss.js') }}"></script>
     <script>
@@ -72,11 +78,14 @@
                 <div class="relative">
                     <div class="absolute inset-0 grid place-items-center pointer-events-none">
                         <div id="capture-progress" class="hidden z-20 flex flex-col items-center gap-3">
-                            <span class="h-8 w-8 border-2 border-slate-300 border-t-transparent rounded-full animate-spin"></span>
+                            <span
+                                class="h-8 w-8 border-2 border-slate-300 border-t-transparent rounded-full animate-spin"></span>
                             <p class="text-sm text-center text-slate-300">Capture in progress...</p>
                         </div>
                     </div>
-                    <img id="stream-preview-img" class="w-full h-full object-fit transition-blur transition duration-150" src="{{ stream_url }}" alt="Live camera feed" />
+                    <img id="stream-preview-img"
+                        class="w-full h-full object-fit transition-blur transition duration-150" src="{{ stream_url }}"
+                        alt="Live camera feed" />
                 </div>
             </figure>
             <div id="capture-controls"
