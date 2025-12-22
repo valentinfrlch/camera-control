@@ -5,9 +5,8 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Camera Live Preview</title>
-    <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600&display=swap"
-        rel="stylesheet" />
-    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="{{ url_for('static', filename='SpaceGrotesk.css') }}" rel="stylesheet" />
+    <script src="{{ url_for('static', filename='tailwindcss.js') }}"></script>
     <script>
         tailwind.config = {
             theme: {
