@@ -1,0 +1,309 @@
+<!doctype html>
+<html lang="en">
+
+<head>
+	<meta charset="utf-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1">
+	<title>Camera Control</title>
+	<link rel="icon" href="../static/favicon/favicon.svg" type="image/svg+xml">
+	<link rel="stylesheet" href="/static/SpaceGrotesk.css">
+	<script src="https://cdn.tailwindcss.com"></script>
+	<script>
+		tailwind.config = {
+			theme: {
+				extend: {
+					fontFamily: {
+						display: ["Space Grotesk", "ui-sans-serif", "system-ui"],
+					},
+					colors: {
+						ember: "#FCB300",
+						aurora: "#57ffe2",
+						slateglass: "rgba(15,23,42,0.8)",
+					},
+					boxShadow: {
+						glow: "0 20px 60px rgba(87,255,226,0.25)",
+					},
+					animation: {
+						fade: "fade 1s ease both",
+					},
+					keyframes: {
+						fade: {
+							"0%": { opacity: 0, transform: "translateY(20px)" },
+							"100%": { opacity: 1, transform: "translateY(0)" },
+						},
+					},
+				},
+			},
+		};
+	</script>
+	<style>
+		body::before,
+		body::after {
+			content: "";
+			position: fixed;
+			inset: auto;
+			width: 32rem;
+			height: 32rem;
+			border-radius: 9999px;
+			filter: blur(120px);
+			opacity: 0.4;
+			pointer-events: none;
+			background: radial-gradient(circle, rgba(87, 255, 226, 0.6), transparent 70%);
+		}
+
+		body::before {
+			top: -6rem;
+			right: -4rem;
+		}
+
+		body::after {
+			bottom: -10rem;
+			left: -6rem;
+		}
+	</style>
+</head>
+
+<body class="min-h-screen bg-black text-slate-100 font-display overflow-x-hidden">
+	<div class="relative">
+		<div
+			class="absolute inset-x-0 -top-20 h-64 blur-[140px] bg-gradient-to-r from-ember/30 via-aurora/20 to-slate-500/20 opacity-60">
+		</div>
+		<header class="relative z-10 flex flex-col md:flex-row items-center md:items-center justify-center md:justify-between gap-4 md:gap-0 text-center md:text-left max-w-6xl mx-auto px-6 py-6">
+			<div class="flex items-center justify-center md:justify-start gap-3">
+				<img src="assets/icon.png" alt="Camera Control Logo" class="h-8 w-auto">
+				<h1 class="text-2xl text-white font-semibold">Camera Control</h1>
+			</div>
+			<nav class="hidden md:flex items-center gap-6 text-sm text-slate-300">
+				<a class="px-4 py-2 rounded-full border border-white/30 hover:border-white transition"
+					href="https://github.com/valentinfrlch/camera-control">Get Started</a>
+			</nav>
+		</header>
+
+		<main class="relative z-10 flex flex-col gap-24 pb-24">
+			<section class="max-w-6xl mx-auto px-6 grid lg:grid-cols-2 gap-12 items-center mt-8">
+				<div class="space-y-8 animate-fade">
+					<div>
+						<h2 class="text-4xl md:text-5xl font-semibold leading-tight">Remote Control your Camera</h2>
+						<p class="mt-4 text-lg text-slate-300">Control your camera remotely from your phone or laptop.
+						</p>
+					</div>
+					<div class="flex flex-col sm:flex-row gap-4">
+						<a class="inline-flex items-center justify-center gap-2 rounded-full bg-ember px-6 py-3 text-black font-semibold shadow-lg shadow-ember/30 hover:bg-white transition"
+							href="https://github.com/valentinfrlch/camera-control">Get Started</a>
+					</div>
+				</div>
+				<div class="relative animate-fade" style="animation-delay:0.2s">
+					<div class="absolute -inset-4 bg-gradient-to-r from-aurora/20 to-ember/20 blur-2xl opacity-60">
+					</div>
+					<div class="relative overflow-hidden">
+						<img src="assets/phone-timelapse.png" alt="Camera Control UI preview"
+							class="w-full h-full object-cover">
+					</div>
+				</div>
+			</section>
+
+			<section id="modes" class="max-w-6xl mx-auto px-6">
+				<div class="flex flex-col gap-4 mb-10">
+					<p class="text-sm uppercase tracking-[0.2em] text-aurora">Modes</p>
+					<h3 class="text-3xl font-semibold">Capture your way.</h3>
+					<p class="text-slate-300">Three different modes give you full control over your camera.</p>
+				</div>
+				<div class="grid sm:grid-cols-2 lg:grid-cols-3 gap-6">
+					<article
+						class="rounded-3xl border border-white/10 bg-slateglass backdrop-blur px-6 py-8 flex flex-col gap-4">
+						<p
+							class="rounded-full w-[75px] bg-white/10 border border-white/10 px-5 py-2 text-sm font-medium tracking-wide text-white shadow-glow">
+							Auto</p>
+						<p class="text-slate-300">Select a trigger object and Camera Control will automatically capture
+							photos when the object is detected.</p>
+					</article>
+					<article
+						class="rounded-3xl border border-white/10 bg-slateglass backdrop-blur px-6 py-8 flex flex-col gap-4">
+						<p
+							class="rounded-full w-[93px] bg-white/10 border border-white/10 px-5 py-2 text-sm font-medium tracking-wide text-white shadow-glow">
+							Manual</p>
+						<p class="text-slate-300">Manually capture single or burst photos with a live preview remotely.
+						</p>
+					</article>
+					<article
+						class="rounded-3xl border border-white/10 bg-slateglass backdrop-blur px-6 py-8 flex flex-col gap-4">
+						<p
+							class="rounded-full w-[110px] bg-white/10 border border-white/10 px-5 py-2 text-sm font-medium tracking-wide text-white shadow-glow">
+							Timelapse</p>
+						<p class="text-slate-300">Capture Timelapse sequences with customizable intervals and durations.
+						</p>
+					</article>
+				</div>
+			</section>
+
+			<section id="modes" class="max-w-6xl mx-auto px-6">
+				<div class="flex flex-col gap-4 mb-10">
+					<p class="text-sm uppercase tracking-[0.2em] text-aurora">Features</p>
+					<h3 class="text-3xl font-semibold">Made for adventurers.</h3>
+					<p class="text-slate-300">Three different modes give you full control over your camera.</p>
+				</div>
+				<div class="grid sm:grid-cols-2 lg:grid-cols-3 gap-6">
+					<article
+						class="rounded-3xl border border-white/10 bg-slateglass backdrop-blur px-6 py-8 flex flex-col gap-4">
+						<svg xmlns="http://www.w3.org/2000/svg" height="35px" viewBox="0 -960 960 960" width="35px"
+							fill="#fff">
+							<path
+								d="M600-160q-25 0-42.5-17.5T540-220v-96l-120-84v180q0 25-17.5 42.5T360-160q-25 0-42.5-17.5T300-220v-264L70-645q-17-12-20.5-32t8.5-37q12-17 32.5-21t37.5 8l704 494q17 12 21 32t-8 37q-12 17-32.5 20.5T775-152l-115-80v12q0 25-17.5 42.5T600-160Zm300-148-120-84v-348q0-25 17.5-42.5T840-800q25 0 42.5 17.5T900-740v432ZM60-220v-200q0-25 17.5-42.5T120-480q25 0 42.5 17.5T180-420v200q0 25-17.5 42.5T120-160q-25 0-42.5-17.5T60-220Zm600-256-120-84v-60q0-25 17.5-42.5T600-680q25 0 42.5 17.5T660-620v144Z" />
+						</svg>
+						<p class="text-slate-300">Camera Control runs 100% locally on your device and never requries an
+							active
+							internet connection*.</p>
+						<p class="text-slate-400 text-xs">* An internet connection is required to download the ML model
+							initially.
+							To control your camera from your phone, both devices must be on the same local network (no
+							internet
+							required).</p>
+						</p>
+					</article>
+					<article
+						class="rounded-3xl border border-white/10 bg-slateglass backdrop-blur px-6 py-8 flex flex-col gap-4">
+						<svg xmlns="http://www.w3.org/2000/svg" height="35px" viewBox="0 -960 960 960" width="35px"
+							fill="#fff">
+							<path
+								d="M200-120q-33 0-56.5-23.5T120-200v-120q0-17 11.5-28.5T160-360q17 0 28.5 11.5T200-320v120h120q17 0 28.5 11.5T360-160q0 17-11.5 28.5T320-120H200Zm560 0H640q-17 0-28.5-11.5T600-160q0-17 11.5-28.5T640-200h120v-120q0-17 11.5-28.5T800-360q17 0 28.5 11.5T840-320v120q0 33-23.5 56.5T760-120ZM120-640v-120q0-33 23.5-56.5T200-840h120q17 0 28.5 11.5T360-800q0 17-11.5 28.5T320-760H200v120q0 17-11.5 28.5T160-600q-17 0-28.5-11.5T120-640Zm640 0v-120H640q-17 0-28.5-11.5T600-800q0-17 11.5-28.5T640-840h120q33 0 56.5 23.5T840-760v120q0 17-11.5 28.5T800-600q-17 0-28.5-11.5T760-640Z" />
+						</svg>
+						<p class="text-slate-300">Auto capture mode uses a local ML model to detect objects in the
+							camera feed in
+							real-time. Select a trigger object and press start. Camera Control will automatically
+							capture when it
+							sees that object.</p>
+						</p>
+					</article>
+					<article
+						class="rounded-3xl border border-white/10 bg-slateglass backdrop-blur px-6 py-8 flex flex-col gap-4">
+						<svg xmlns="http://www.w3.org/2000/svg" height="35px" viewBox="0 -960 960 960" width="35px"
+							fill="#fff">
+							<path
+								d="m530-460-46-60q-6-8-16-8t-16 8l-67 88q-8 10-2.5 21t18.5 11h318q13 0 18.5-11t-2.5-21l-97-127q-6-8-16-8t-16 8l-76 99ZM320-240q-33 0-56.5-23.5T240-320v-480q0-33 23.5-56.5T320-880h480q33 0 56.5 23.5T880-800v480q0 33-23.5 56.5T800-240H320Zm0-80h480v-480H320v480ZM160-80q-33 0-56.5-23.5T80-160v-520q0-17 11.5-28.5T120-720q17 0 28.5 11.5T160-680v520h520q17 0 28.5 11.5T720-120q0 17-11.5 28.5T680-80H160Zm160-720v480-480Z" />
+						</svg>
+						<p class="text-slate-300">Preview, download and share your captures directly from the web
+							interface.</p>
+						<p class="text-slate-300">All images are stored as preview (jpg) and full (raw) resolution.
+						</p>
+					</article>
+				</div>
+			</section>
+
+			<section id="gallery" class="max-w-6xl mx-auto px-6">
+				<div class="flex flex-col gap-4 mb-10">
+					<p class="text-sm uppercase tracking-[0.2em] text-aurora">Features</p>
+					<h3 class="text-3xl font-semibold">Highlights from the field.</h3>
+					<p class="text-slate-300"></p>
+				</div>
+				<div class="grid md:grid-cols-3 gap-6">
+					<figure class="group relative overflow-hidden rounded-[28px] border border-white/10">
+						<img src="assets/bird-sm.png" alt="Macro shot"
+							class="w-full h-full object-cover saturate-125 transition duration-700 group-hover:scale-105">
+						<figcaption
+							class="absolute inset-0 bg-gradient-to-t from-black/70 via-black/5 to-transparent p-4 flex flex-col justify-end text-sm">
+							Switch between single and burst capture modes. You can also set how many photos to take in
+							each burst.</figcaption>
+					</figure>
+					<figure class="group relative overflow-hidden rounded-[28px] border border-white/10">
+						<img src="assets/aurora-sm.png" alt="Console"
+							class="w-full h-full object-cover transition duration-700 group-hover:scale-105">
+						<figcaption
+							class="absolute inset-0 bg-gradient-to-t from-black/70 via-black/5 to-transparent p-4 flex flex-col justify-end text-sm">
+							Timelapse displays how many frames will be captured before your start.</figcaption>
+					</figure>
+					<figure class="group relative overflow-hidden rounded-[28px] border border-white/10">
+						<img src="assets/gallery.png" alt="Details"
+							class="w-full h-full object-cover transition duration-700 group-hover:scale-105">
+						<figcaption
+							class="absolute inset-0 bg-gradient-to-t from-black/70 via-black/5 to-transparent p-4 flex flex-col justify-end text-sm">
+							See all your captures in one place in the gallery - built directly into the web interface.
+						</figcaption>
+					</figure>
+				</div>
+			</section>
+
+			<section class="max-w-6xl mx-auto px-6 grid lg:grid-cols-2 gap-12 items-center mt-8">
+				<div class="relative animate-fade" style="animation-delay:0.2s">
+					<div class="absolute -inset-4 bg-gradient-to-r from-aurora/20 to-ember/20 blur-2xl opacity-60">
+					</div>
+					<div class="relative overflow-hidden">
+						<img src="assets/gallery-detail.png" alt="Camera Control UI preview"
+							class="w-full h-full object-cover">
+					</div>
+				</div>
+				<div class="space-y-8 animate-fade">
+					<div>
+						<h3 class="text-3xl font-semibold">Built-in Gallery</h3>
+						<p class="text-slate-300">See all your captures in one place in the gallery. Preview, download and share your photos directly from the web interface.</p>
+						<br>
+						<p class="text-slate-300">Photos are automatically grouped as stacks if they were taken in burst mode or timelapse. You can download entire stacks (as zip) or individual photos in both RAW and JPEG formats.</p>
+					</div>
+				</div>
+			</section>
+
+			<section id="workflow" class="max-w-6xl mx-auto px-6">
+				<div class="flex flex-col gap-4 mb-10">
+					<p class="text-sm uppercase tracking-[0.2em] text-aurora">Setup</p>
+					<h3 class="text-3xl font-semibold">From installation to capture in three steps.</h3>
+					<p class="text-slate-300">Getting started with Camera Control is simple.</p>
+					<div class="grid sm:grid-cols-2 lg:grid-cols-3 gap-6">
+						<div class="flex items-start gap-4">
+							<span
+								class="flex-shrink-0 flex items-center justify-center w-14 aspect-square rounded-full border border-aurora text-aurora text-lg font-semibold tracking-[0.2em]">01</span>
+							<div>
+								<p class="text-xs uppercase tracking-[0.2em] text-aurora">Install</p>
+								<p class="text-lg text-slate-200">Follow the readme in the project repository to install
+									the
+									necessary software
+									and dependencies.</p>
+							</div>
+						</div>
+						<div class="flex items-start gap-4">
+							<span
+								class="flex-shrink-0 flex items-center justify-center w-14 aspect-square rounded-full border border-aurora text-aurora text-lg font-semibold tracking-[0.2em]">02</span>
+							<div>
+								<p class="text-xs uppercase tracking-[0.2em] text-aurora">Run</p>
+								<p class="text-lg text-slate-200">Run python webserver.py in your terminal.</p>
+							</div>
+						</div>
+						<div class="flex items-start gap-4">
+							<span
+								class="flex-shrink-0 flex items-center justify-center w-14 aspect-square rounded-full border border-aurora text-aurora text-lg font-semibold tracking-[0.2em]">03</span>
+							<div>
+								<p class="text-xs uppercase tracking-[0.2em] text-aurora">Capture</p>
+								<p class="text-lg text-slate-200">Choose your capture mode and start taking photos.</p>
+							</div>
+						</div>
+					</div>
+				</div>
+			</section>
+
+			<section id="cta" class="max-w-5xl mx-auto px-6">
+				<div
+					class="rounded-[36px] border border-white/10 bg-slateglass backdrop-blur px-10 py-12 flex flex-col lg:flex-row gap-10 items-center">
+					<div class="space-y-4">
+						<h3 class="text-3xl font-semibold">Get ready for your next adventure</h3>
+						<p class="text-slate-300">Download Camera Control and start capturing.</p>
+					</div>
+					<div class="flex flex-col gap-3 min-w-[220px]">
+						<a class="inline-flex items-center justify-center gap-2 rounded-full bg-ember px-6 py-3 text-black font-semibold shadow-lg shadow-ember/30 hover:bg-white transition"
+							href="https://github.com/valentinfrlch/camera-control">Get Started</a>
+					</div>
+				</div>
+			</section>
+
+
+		</main>
+
+		<footer
+			class="relative z-10 max-w-6xl mx-auto px-6 py-12 flex flex-col items-center justify-center text-center text-sm text-slate-400">
+			<p>© <span id="year"></span> Valentin Fröhlich. Crafted for adventures.</p>
+		</footer>
+	</div>
+
+	<script>
+		document.getElementById("year").textContent = new Date().getFullYear();
+	</script>
+</body>
+
+</html>
