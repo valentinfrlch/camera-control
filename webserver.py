@@ -79,7 +79,7 @@ _timelapse_status: Dict[str, object] = {
 
 _timelapse_capture_dir: Optional[Path] = None
 
-_BASE_DIR = Path().home() / "Documents" / "Camera Control"
+_BASE_DIR = Path().home() / "Pictures" / "Camera Control"
 _BASE_DIR.mkdir(parents=True, exist_ok=True)
 _PREVIEW_ROOT = (_BASE_DIR / "captures/previews").resolve()
 _PREVIEW_ROOT.mkdir(parents=True, exist_ok=True)
