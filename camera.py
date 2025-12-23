@@ -7,7 +7,7 @@ import sys
 import time
 from datetime import datetime
 from pathlib import Path
-from typing import Dict, List, Optional, TYPE_CHECKING
+from typing import Dict, List, Optional, Set, Tuple, TYPE_CHECKING
 import rawpy
 
 if TYPE_CHECKING:
@@ -19,11 +19,21 @@ class Camera:
 
     def __init__(self, auto_release=True, capture_confidence_threshold: float = 0.6):
         self.auto_release = auto_release
-        self.capture_dir = Path().home() / "Documents" / "Camera Control" / "captures" / "raw"
+        self.capture_dir = (
+            Path().home() / "Pictures" / "Camera Control" / "captures" / "raw"
+        )
         self.capture_cooldown_seconds = 3.0
         self.capture_confidence_threshold = capture_confidence_threshold
         self._last_capture_timestamp = 0.0
         self._frame_queue: Optional["queue.Queue"] = None
+        self._frame_queue_lock = threading.Lock()
+        self._capture_state_lock = threading.Lock()
+        # Track labels that have already triggered an automatic capture until they leave the frame.
+        self._latched_capture_labels: Set[str] = set()
+        self._enqueue_allowed = threading.Event()
+        self._enqueue_allowed.set()
+        self._capture_check_ready = threading.Event()
+        self._capture_check_ready.clear()
         self.state = "disconnected"
         if self.auto_release:
             self._release_ptpcamera()
@@ -69,10 +79,13 @@ class Camera:
                 if active_recognizer is not None:
                     try:
                         display_frame, detections = active_recognizer.annotate(frame)
-                        capture_requested = self._should_trigger_capture(
-                            getattr(active_recognizer, "capture_objects", []),
-                            detections,
-                        )
+                        if self._capture_check_ready.is_set():
+                            capture_requested = self._should_trigger_capture(
+                                getattr(active_recognizer, "capture_objects", []),
+                                detections,
+                            )
+                        else:
+                            capture_requested = False
                     except Exception as detection_error:
                         print(f"Object recognition disabled: {detection_error}")
                         active_recognizer = None
@@ -84,8 +97,6 @@ class Camera:
                     break
 
                 if capture_requested:
-                    self._clear_frame_queue(self._frame_queue)
-                    self._debug_log_queue("live_preview", self._frame_queue)
                     proc, reader_thread, q = self._restart_preview_with_capture(
                         proc, reader_thread, self._frame_queue
                     )
@@ -231,6 +242,9 @@ class Camera:
                     if not chunk:
                         break
                     buf += chunk
+                    if not self._enqueue_allowed.is_set():
+                        buf.clear()
+                        continue
                     while True:
                         start = buf.find(SOI)
                         if start == -1:
@@ -246,10 +260,21 @@ class Camera:
                         arr = np.frombuffer(frame_bytes, dtype=np.uint8)
                         frame = cv2.imdecode(arr, cv2.IMREAD_COLOR)
                         if frame is not None:
+                            if not self._enqueue_allowed.is_set():
+                                buf.clear()
+                                break
+                            if not self._frame_queue_lock.acquire(blocking=False):
+                                continue
                             try:
+                                if not self._enqueue_allowed.is_set():
+                                    buf.clear()
+                                    break
                                 frame_queue.put(frame, timeout=0.1)
+                                self._capture_check_ready.set()
                             except queue.Full:
                                 pass
+                            finally:
+                                self._frame_queue_lock.release()
             finally:
                 if proc.poll() is None:
                     proc.terminate()
@@ -265,23 +290,56 @@ class Camera:
         detections: Optional[List[Dict[str, object]]],
     ) -> bool:
         if not capture_labels or not detections:
+            with self._capture_state_lock:
+                self._latched_capture_labels.clear()
             return False
-        now = time.monotonic()
-        if now - self._last_capture_timestamp < self.capture_cooldown_seconds:
+
+        target_labels = {
+            str(label).strip().lower() for label in capture_labels if str(label).strip()
+        }
+        if not target_labels:
+            with self._capture_state_lock:
+                self._latched_capture_labels.clear()
             return False
-        target_labels = {label.lower() for label in capture_labels}
+
+        qualifying_detections: List[Tuple[str, float]] = []
+        current_detected_labels: Set[str] = set()
         for detection in detections:
-            detected_label = str(detection.get("label", "")).lower()
+            detected_label = str(detection.get("label", "")).strip().lower()
+            if detected_label not in target_labels:
+                continue
             confidence = float(detection.get("confidence", 0.0))  # type: ignore
-            if (
-                detected_label in target_labels
-                and confidence >= self.capture_confidence_threshold
-            ):
+            if confidence < self.capture_confidence_threshold:
+                continue
+            qualifying_detections.append((detected_label, confidence))
+            current_detected_labels.add(detected_label)
+
+        with self._capture_state_lock:
+            if self._latched_capture_labels:
+                if current_detected_labels:
+                    self._latched_capture_labels.intersection_update(
+                        current_detected_labels
+                    )
+                else:
+                    self._latched_capture_labels.clear()
+
+            if not qualifying_detections:
+                return False
+
+            now = time.monotonic()
+            if now - self._last_capture_timestamp < self.capture_cooldown_seconds:
+                return False
+
+            for detected_label, confidence in qualifying_detections:
+                if detected_label in self._latched_capture_labels:
+                    continue
                 print(
                     f"Triggering capture for detected object: {detected_label} ({confidence:.2%})"
                 )
+                self._latched_capture_labels.add(detected_label)
                 self._last_capture_timestamp = now
                 return True
+
         return False
 
     def _restart_preview_with_capture(
@@ -292,10 +350,13 @@ class Camera:
         shoot_mode: str = "burst",
         burst_count: int = 3,
     ):
-        self._stop_preview_process(proc, reader_thread)
         target_queue = frame_queue or self._frame_queue
-        self._clear_frame_queue(target_queue)
-        self._debug_log_queue("restart_preview", target_queue)
+        self._capture_check_ready.clear()
+        self._enqueue_allowed.clear()
+        self._stop_preview_process(proc, reader_thread)
+        with self._frame_queue_lock:
+            self._clear_frame_queue(target_queue)
+            self._debug_log_queue("restart_preview", target_queue)
         try:
             if str(shoot_mode).lower() == "single":
                 capture_path = self.capture_single()
@@ -304,7 +365,11 @@ class Camera:
             print(f"Captured image saved to {capture_path}")
         except RuntimeError as capture_error:
             print(f"Capture failed: {capture_error}")
-        return self.start_live_preview_stream()
+        try:
+            new_proc, new_thread, new_queue = self.start_live_preview_stream()
+        finally:
+            self._enqueue_allowed.set()
+        return new_proc, new_thread, new_queue
 
     @staticmethod
     def _clear_frame_queue(frame_queue: Optional["queue.Queue"]) -> None:

@@ -37,3 +37,20 @@ def test_convert_to_jpeg():
     jpeg_path = camera._convert_to_jpeg(nef_path)
     assert jpeg_path.exists()
     print(f"Converted image saved at: {jpeg_path}")
+
+
+def test_should_trigger_capture_requires_detection_reset():
+    camera = Camera(auto_release=False)
+    camera.capture_cooldown_seconds = 0.0
+    capture_labels = ["Bird"]
+    detections = [{"label": "Bird", "confidence": 0.9}]
+
+    assert camera._should_trigger_capture(capture_labels, detections) is True
+    # Subsequent frames that still see the same object should not retrigger captures.
+    assert camera._should_trigger_capture(capture_labels, detections) is False
+
+    # Once the object leaves the frame (no qualifying detections), the latch resets.
+    assert camera._should_trigger_capture(capture_labels, []) is False
+
+    # Seeing the object again after it disappeared should trigger another capture.
+    assert camera._should_trigger_capture(capture_labels, detections) is True
